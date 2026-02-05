@@ -18,6 +18,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Fix permissions
+        if: matrix.resources-dir != 'windows-x64'
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+
       - name: Create local.properties
         run: |
           echo "${{ secrets.LOCAL_PROPERTIES }}" > local.properties
