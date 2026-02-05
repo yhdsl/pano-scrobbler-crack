@@ -49,4 +49,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pano-scrobbler-android-universal
-          path: ./androidApp/build/outputs/*
+          path: ./androidApp/build/outputs/apk/releaseGithub/pano-scrobbler-releaseGithub-unsigned.apk
