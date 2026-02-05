@@ -65,57 +65,9 @@ class BillingRepository(
     }
 
     override suspend fun checkAndStoreLicense(receipt: String) {
-        if (verifyPurchase(receipt, null)) {
-            if (licenseState.value != LicenseState.VALID ||
-                System.currentTimeMillis() - clientData.lastCheckTime.first() > CHECK_EVERY_DAYS.days.inWholeMilliseconds
-            ) {
-                LicenseChecker.checkLicenseOnline(
-                    httpPost = clientData.httpPost,
-                    url = LICENSE_CHECKING_SERVER + "/license/verify",
-                    did = clientData.deviceIdentifier(),
-                    token = receipt
-                ).onSuccess {
-                    when (it.code) {
-                        0 -> {
-                            if (it.message == "valid") {
-                                clientData.setReceipt(receipt, null)
-                            } else {
-                                _licenseError.emit(LicenseError.REJECTED)
-                                clientData.setReceipt(null, null)
-                            }
-                        }
-
-                        1 -> {
-                            _licenseError.emit(LicenseError.REJECTED)
-                            clientData.setReceipt(null, null)
-                        }
-
-                        2 -> {
-                            _licenseError.emit(LicenseError.MAX_DEVICES_REACHED)
-                            clientData.setReceipt(null, null)
-                        }
-                    }
-
-                    clientData.setLastcheckTime(System.currentTimeMillis())
-                }.onFailure { e ->
-                    e.printStackTrace()
-                    _licenseError.emit(LicenseError.NETWORK_ERROR)
-                }
-            }
-        } else {
-            delay(2000)
-            _licenseError.emit(LicenseError.REJECTED)
-            clientData.setReceipt(null, null)
-        }
     }
 
-
-    override fun verifyPurchase(data: String, signature: String?) =
-        LicenseChecker.validateJwt(
-            data,
-            clientData.proProductId,
-            PUBLIC_KEY_BASE64
-        )
+    override fun verifyPurchase(data: String, signature: String?) = true
 
     override fun launchBillingFlow(purchaseMethod: PurchaseMethod, activity: Any?) {
         purchaseMethod.link?.let { openInBrowser(it) }

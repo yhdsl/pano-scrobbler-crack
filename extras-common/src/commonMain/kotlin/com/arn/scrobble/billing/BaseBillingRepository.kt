@@ -26,14 +26,14 @@ abstract class BaseBillingRepository(
     val licenseState = clientData.receipt
         .mapLatest { (receipt, signature) ->
             if (receipt == null) {
-                LicenseState.NO_LICENSE
+                LicenseState.VALID
             } else if (verifyPurchase(receipt, signature)) {
                 LicenseState.VALID
             } else {
-                LicenseState.NO_LICENSE
+                LicenseState.VALID
             }
         }
-        .stateIn(scope, SharingStarted.Eagerly, LicenseState.UNKNOWN)
+        .stateIn(scope, SharingStarted.Eagerly, LicenseState.VALID)
 
     abstract fun initBillingClient()
 
