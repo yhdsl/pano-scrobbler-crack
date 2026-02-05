@@ -1,52 +1,32 @@
 name: Build binaries
+
 on:
   workflow_dispatch:
-    inputs:
-      upload-release:
-        type: boolean
-        description: 'Upload to GitHub Releases?'
-        required: false
-        default: false
+
 jobs:
   build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ windows-latest, ubuntu-latest, ubuntu-24.04-arm ]
+        os: [ ubuntu-latest ]
         include:
-          - os: windows-latest
-            resources-dir: windows-x64
           - os: ubuntu-latest
             resources-dir: linux-x64
-          - os: ubuntu-24.04-arm
-            resources-dir: linux-arm64
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Fix permissions
-        if: matrix.resources-dir != 'windows-x64'
-        shell: bash
-        run: |
-          chmod +x ./gradlew
-
-      - name: Set up common secrets
-        shell: bash
+      - name: Create local.properties
         run: |
           echo "${{ secrets.LOCAL_PROPERTIES }}" > local.properties
 
-      - if: matrix.resources-dir == 'linux-x64'
-        name: Set up Android secrets
-        shell: bash
-        run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_JKS }}" | base64 -d - > androidApp/android-keystore.jks
-
-      - if: matrix.resources-dir == 'windows-x64'
-        name: Set up NSIS
-        shell: bash
-        run: |
-          choco install -y --no-progress nsis
+#      - if: matrix.resources-dir == 'linux-x64'
+#        name: Set up Android secrets
+#        shell: bash
+#        run: |
+#          echo "${{ secrets.ANDROID_KEYSTORE_JKS }}" | base64 -d - > androidApp/android-keystore.jks
 
       - if: matrix.resources-dir == 'linux-x64'
         name: Build APK
@@ -58,111 +38,9 @@ jobs:
           ./gradlew androidApp:assembleReleaseGithub
           ./gradlew --stop
 
-      - name: Install Liberica NIK (GraalVM)
-        uses: graalvm/setup-graalvm@v1
-        with:
-          java-version: '25'
-          distribution: 'liberica'
-          github-token: ${{ github.token }}
-
-      - name: Download native libraries
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          RUN_ID=$(gh run list \
-            -R "kawaiiDango/pano-native-components" \
-            --workflow "build.yml" \
-            --status success \
-            -L 1 \
-            --json databaseId \
-            -q '.[0].databaseId')
-
-          if [ -z "$RUN_ID" ]; then
-            echo "No successful runs found" >&2
-            exit 1
-          fi
-
-          # Download artifacts from that run (filter by name if provided)
-          gh run download "$RUN_ID" -R "kawaiiDango/pano-native-components" -n "libs-${{ matrix.resources-dir }}" -D composeApp/resources/${{ matrix.resources-dir }}
-
-      - name: Build desktop jar and native image
-        shell: bash
-        run: |
-          ./gradlew composeApp:exportLibraryDefinitions -PaboutLibraries.exportVariant=desktop
-          ./gradlew composeApp:packageUberJarForCurrentOS
-
-      - name: Upload desktop binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: pano-scrobbler-${{ matrix.resources-dir }}
-          path: dist/pano-scrobbler-${{ matrix.resources-dir }}*
-
       - if: matrix.resources-dir == 'linux-x64'
         name: Upload Android binary
         uses: actions/upload-artifact@v4
         with:
           name: pano-scrobbler-android-universal
-          path: dist/pano-scrobbler-android-universal*
-  
-  upload-release:
-    needs: [ build ]
-    runs-on: windows-latest
-    if: ${{ inputs.upload-release == true }}
-    steps:
-      - name: Read version and changelog
-        id: release_metadata
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          verCode="$(gh api -H "Accept: application/vnd.github.raw" "/repos/${GITHUB_REPOSITORY}/contents/version.txt?ref=${GITHUB_SHA}")"
-          verCode="$(echo "$verCode" | tr -d '\r\n' | xargs)"
-          verName="$((verCode / 100)).$((verCode % 100))"
-          echo "verCode=$verCode" >> "$GITHUB_OUTPUT"
-          echo "verName=$verName" >> "$GITHUB_OUTPUT"
-          
-          changelog="$(gh api -H "Accept: application/vnd.github.raw" "/repos/${GITHUB_REPOSITORY}/contents/changelog.txt?ref=${GITHUB_SHA}")"
-          {
-            echo "changelog<<EOF"
-            echo "$changelog"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v5
-        with:
-          merge-multiple: true
-          path: dist
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.release_metadata.outputs.verCode }}
-          name: ${{ steps.release_metadata.outputs.verName }}
-          body: ${{ steps.release_metadata.outputs.changelog }}
-          files: dist/**
-
-      - name: Dispatch static site build
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          sleep 7
-          gh api repos/${{ github.repository }}/dispatches \
-            -F event_type='static_site'
-
-      - name: Install WingetCreate
-        shell: bash
-        run: |
-          winget install --id Microsoft.WingetCreate --accept-package-agreements --accept-source-agreements --disable-interactivity
-
-      - name: Submit to winget-pkgs
-        env:
-          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          wingetcreate update kawaiiDango.pano-scrobbler \
-            --version ${{ steps.release_metadata.outputs.verName }} \
-            --urls "https://github.com/kawaiiDango/pano-scrobbler/releases/download/${{ steps.release_metadata.outputs.verCode }}/pano-scrobbler-windows-x64.exe" \
-            --submit
+          path: ./androidApp/build/outputs/*
