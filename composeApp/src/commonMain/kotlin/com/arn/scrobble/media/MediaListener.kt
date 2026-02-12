@@ -121,7 +121,10 @@ abstract class MediaListener(
         }
 
 
-        fun metadataChanged(metadata: MetadataInfo, extras: Map<String, String>) {
+        fun metadataChanged(
+            metadata: MetadataInfo,
+            ignoreScrobble: Boolean,
+        ) {
             val sameAsOld =
                 metadata.artist == trackInfo.origArtist &&
                         metadata.title == trackInfo.origTitle &&
@@ -139,21 +142,21 @@ abstract class MediaListener(
                     album = metadata.album,
                     albumArtist = metadata.albumArtist,
                     durationMillis = metadata.duration,
-                    trackId = metadata.trackId.ifEmpty { null },
-                    artUrl = metadata.artUrl.ifEmpty { null },
-                    extraData = extras,
+                    normalizedUrlHost = metadata.normalizedUrlHost,
+                    artUrl = metadata.artUrl,
                 )
 
                 if (mutedHash != null && trackInfo.hash != mutedHash && lastPlaybackState == CommonPlaybackState.Playing)
                     unmute(clearMutedHash = isMuted)
 
-                // for cases:
-                // - meta is sent after play
-                // - "gapless playback", where playback state never changes
-                if ((!scrobbleQueue.has(trackInfo.hash) || onlyDurationUpdated) &&
-                    lastPlaybackState == CommonPlaybackState.Playing &&
-                    metadata.artist.isNotEmpty() && metadata.title.isNotEmpty()
+                if (ignoreScrobble || metadata.artist.isEmpty() || metadata.title.isEmpty()) {
+                    ignoreScrobble()
+                } else if ((!scrobbleQueue.has(trackInfo.hash) || onlyDurationUpdated) &&
+                    lastPlaybackState == CommonPlaybackState.Playing
                 ) {
+                    // for cases:
+                    // - meta is sent after play
+                    // - "gapless playback", where playback state never changes
                     trackInfo.resetTimePlayed()
                     scrobble()
                 }
@@ -208,11 +211,11 @@ abstract class MediaListener(
                     if (mutedHash != null && trackInfo.hash != mutedHash)
                         unmute(clearMutedHash = isMuted)
 
-                    if (trackInfo.title != "" && trackInfo.artist != "") {
-                        trackInfo.resumed()
+                    if (!isMuted && trackInfo.hash == mutedHash)
+                        mute(trackInfo.hash)
 
-                        if (!isMuted && trackInfo.hash == mutedHash)
-                            mute(trackInfo.hash)
+                    if (trackInfo.scrobbledState < PlayingTrackInfo.ScrobbledState.CANCELLED) {
+                        trackInfo.resumed()
 
                         if (trackInfo.hash != trackInfo.lastScrobbleHash ||
                             (playbackInfo.position >= 0L && isPossiblyAtStart && timelineChanged)

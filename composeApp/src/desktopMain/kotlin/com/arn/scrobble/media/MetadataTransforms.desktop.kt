@@ -7,14 +7,14 @@ actual typealias PlatformMediaMetadata = MetadataInfo
 actual fun transformMediaMetadata(
     trackInfo: PlayingTrackInfo,
     metadata: PlatformMediaMetadata,
-): Pair<MetadataInfo, Map<String, String>> {
+): Pair<MetadataInfo, Boolean> {
     var artist = metadata.artist.trim()
     var album = metadata.album.trim()
-    var title = metadata.title.trim()
+    val title = metadata.title.trim()
     var albumArtist = metadata.albumArtist.trim()
     val trackNumber = metadata.trackNumber
     // a -1 value on my windows implementation means, a timeline info event hasn't been received yet
-    var durationMillis = metadata.duration
+    val durationMillis = metadata.duration
 
     when (trackInfo.appId.lowercase()) {
         Stuff.PACKAGE_APPLE_MUSIC_WIN_EXE.lowercase(),
@@ -31,7 +31,6 @@ actual fun transformMediaMetadata(
     }
 
     val metadataInfo = MetadataInfo(
-        trackId = metadata.trackId,
         title = title,
         artist = artist,
         album = album,
@@ -39,7 +38,15 @@ actual fun transformMediaMetadata(
         trackNumber = trackNumber,
         duration = durationMillis,
         artUrl = metadata.artUrl,
+        normalizedUrlHost = metadata.normalizedUrlHost,
     )
 
-    return metadataInfo to emptyMap()
+    var ignoreScrobble = false
+
+//        Spotify ADs: MetadataInfo(trackId=, title=Advertisement, artist=Something, album=, albumArtist=Something, trackNumber=0, duration=20000, artUrl=)
+    if (metadata.title == "Advertisement" && metadata.artist == metadata.albumArtist && metadata.album.isEmpty() && metadata.artist.isNotEmpty()) {
+        ignoreScrobble = true
+    }
+
+    return metadataInfo to ignoreScrobble
 }

@@ -10,8 +10,7 @@ actual typealias PlatformMediaMetadata = MediaMetadata
 actual fun transformMediaMetadata(
     trackInfo: PlayingTrackInfo,
     metadata: PlatformMediaMetadata,
-): Pair<MetadataInfo, Map<String, String>> {
-    val trackId = metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_ID) ?: ""
+): Pair<MetadataInfo, Boolean> {
     var albumArtist = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)?.trim() ?: ""
     // do not scrobble empty artists, ads will get scrobbled
     var artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)?.trim() ?: ""
@@ -23,16 +22,14 @@ actual fun transformMediaMetadata(
     if (durationMillis < -1 || trackInfo.appId in Stuff.IGNORE_DURATION)
         durationMillis = -1
 
-    val extrasMap = mutableMapOf<String, String>()
-
-    metadata.getLong(Stuff.METADATA_KEY_YOUTUBE_WIDTH).takeIf { it != 0L }
-        ?.let { extrasMap[Stuff.METADATA_KEY_YOUTUBE_WIDTH] = it.toString() }
-
-    metadata.getLong(Stuff.METADATA_KEY_YOUTUBE_HEIGHT).takeIf { it != 0L }
-        ?.let { extrasMap[Stuff.METADATA_KEY_YOUTUBE_HEIGHT] = it.toString() }
-
-    metadata.getString(Stuff.METADATA_KEY_AM_ARTIST_ID)
-        ?.let { extrasMap[Stuff.METADATA_KEY_AM_ARTIST_ID] = it }
+//    metadata.getLong(Stuff.METADATA_KEY_YOUTUBE_WIDTH).takeIf { it != 0L }
+//        ?.let { extrasMap[Stuff.METADATA_KEY_YOUTUBE_WIDTH] = it.toString() }
+//
+//    metadata.getLong(Stuff.METADATA_KEY_YOUTUBE_HEIGHT).takeIf { it != 0L }
+//        ?.let { extrasMap[Stuff.METADATA_KEY_YOUTUBE_HEIGHT] = it.toString() }
+//
+//    metadata.getString(Stuff.METADATA_KEY_AM_ARTIST_ID)
+//        ?.let { extrasMap[Stuff.METADATA_KEY_AM_ARTIST_ID] = it }
 
 
     when (trackInfo.appId) {
@@ -134,15 +131,19 @@ actual fun transformMediaMetadata(
 //            )
 
     val metadataInfo = MetadataInfo(
-        trackId = trackId,
         title = title,
         artist = artist,
         album = album,
         albumArtist = albumArtist,
         trackNumber = trackNumber,
         duration = durationMillis,
-        artUrl = ""
+        artUrl = null,
+        normalizedUrlHost = null,
     )
 
-    return metadataInfo to extrasMap
+    val ignoreScrobble = metadata.getLong(METADATA_KEY_ADVERTISEMENT) != 0L
+
+    return metadataInfo to ignoreScrobble
 }
+
+private const val METADATA_KEY_ADVERTISEMENT = "android.media.metadata.ADVERTISEMENT"
