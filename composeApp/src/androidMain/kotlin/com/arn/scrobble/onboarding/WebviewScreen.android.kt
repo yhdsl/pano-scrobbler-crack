@@ -3,8 +3,6 @@ package com.arn.scrobble.onboarding
 import android.os.Build
 import android.view.ViewGroup
 import android.webkit.WebView
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -16,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import com.arn.scrobble.api.UserAccountTemp
 import com.arn.scrobble.api.pleroma.PleromaOauthClientCreds
+import com.arn.scrobble.navigation.PanoRoute
 import org.jetbrains.compose.resources.stringResource
 import pano_scrobbler.composeapp.generated.resources.Res
 import pano_scrobbler.composeapp.generated.resources.loading
@@ -25,10 +24,10 @@ actual fun WebViewScreen(
     initialUrl: String,
     onSetTitle: (String) -> Unit,
     onBack: () -> Unit,
+    onNavigate: (PanoRoute) -> Unit,
     modifier: Modifier,
     userAccountTemp: UserAccountTemp?,
     pleromaOauthClientCreds: PleromaOauthClientCreds?,
-    bottomContent: @Composable ColumnScope.() -> Unit,
     viewModel: WebViewVM,
 ) {
     val webViewClient = remember {
@@ -49,46 +48,41 @@ actual fun WebViewScreen(
         viewModel.loginState.collect { loginState ->
             handleWebViewStatus(
                 loginState,
+                onNavigate = onNavigate,
                 onSetStatusText = { statusText = it },
                 onBack = onBack,
             )
         }
     }
 
-    Column(
-        modifier = modifier
-    ) {
-        if (statusText.isEmpty())
-            AndroidView(
-                factory = {
-                    WebView(it).apply {
-                        layoutParams = ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                        settings.javaScriptEnabled = true
-                        settings.allowContentAccess = false
-                        settings.allowFileAccess = false
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            settings.isAlgorithmicDarkeningAllowed = true
-                        }
-
-                        webViewChromeClient.pageTitleState = pageTitleState
-                        webViewClient.callbackUrlAndCookies = viewModel.callbackUrlAndCookies
-
-                        this.webViewClient = webViewClient
-                        this.webChromeClient = webViewChromeClient
-                        loadUrl(initialUrl)
+    if (statusText.isEmpty())
+        AndroidView(
+            factory = {
+                WebView(it).apply {
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    settings.javaScriptEnabled = true
+                    settings.allowContentAccess = false
+                    settings.allowFileAccess = false
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        settings.isAlgorithmicDarkeningAllowed = true
                     }
-                },
-                modifier = Modifier.weight(1f)
-            )
-        else
-            Text(
-                text = statusText,
-                modifier = Modifier.weight(1f)
-            )
 
-        bottomContent()
-    }
+                    webViewChromeClient.pageTitleState = pageTitleState
+                    webViewClient.callbackUrlAndCookies = viewModel.callbackUrlAndCookies
+
+                    this.webViewClient = webViewClient
+                    this.webChromeClient = webViewChromeClient
+                    loadUrl(initialUrl)
+                }
+            },
+            modifier = modifier
+        )
+    else
+        Text(
+            text = statusText,
+            modifier = modifier
+        )
 }

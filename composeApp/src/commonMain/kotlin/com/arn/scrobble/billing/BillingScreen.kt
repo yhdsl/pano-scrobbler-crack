@@ -24,6 +24,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -84,7 +85,7 @@ fun BillingScreen(
     modifier: Modifier = Modifier,
 ) {
     val activity = getActivityOrNull()
-    val proProductDetails by viewModel.proProductDetails.collectAsStateWithLifecycle()
+    val formattedPrice by viewModel.formattedPrice.collectAsStateWithLifecycle(null)
     var errorText by rememberSaveable { mutableStateOf<String?>(null) }
 
     val bulletStrings = listOfNotNull(
@@ -178,7 +179,7 @@ fun BillingScreen(
             ) {
                 MediumExtendedFloatingActionButton(
                     onClick = {
-                        if (proProductDetails != null) {
+                        if (formattedPrice != null) {
                             if (purchaseMethods.size > 1) {
                                 purchaseMethodsExpanded = true
                             } else if (activity != null && purchaseMethods.isNotEmpty()) {
@@ -200,7 +201,7 @@ fun BillingScreen(
                             )
 
                             Text(
-                                text = (proProductDetails?.formattedPrice ?: "") +
+                                text = (formattedPrice ?: "") +
                                         ", " + stringResource(Res.string.one_time_purchase),
                                 style = MaterialTheme.typography.bodyMedium
                             )
@@ -229,10 +230,11 @@ fun BillingScreen(
                                 Column {
                                     Text(
                                         purchaseMethod.displayName,
+                                        style = MaterialTheme.typography.titleMediumEmphasized
                                     )
                                     Text(
                                         purchaseMethod.displayDesc,
-                                        style = MaterialTheme.typography.bodySmallEmphasized
+                                        fontStyle = FontStyle.Italic
                                     )
                                 }
                             }

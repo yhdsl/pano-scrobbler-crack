@@ -84,6 +84,11 @@ jobs:
         with:
           destination: "./static-site"
 
+      - name: Copy .md files
+        run: |
+          cp faq.md static-site/faq.md
+          cp privacy-policy.md static-site/privacy-policy.md
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:

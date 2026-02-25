@@ -52,6 +52,7 @@ import pano_scrobbler.composeapp.generated.resources.high
 import pano_scrobbler.composeapp.generated.resources.light
 import pano_scrobbler.composeapp.generated.resources.low
 import pano_scrobbler.composeapp.generated.resources.medium
+import pano_scrobbler.composeapp.generated.resources.random_on_start
 import pano_scrobbler.composeapp.generated.resources.system_colors
 
 @Composable
@@ -63,6 +64,7 @@ fun ThemeChooserScreen(
     var themeName: String? by rememberSaveable { mutableStateOf(null) }
     var dynamic: Boolean? by rememberSaveable { mutableStateOf(null) }
     var dayNightMode: DayNightMode? by rememberSaveable { mutableStateOf(null) }
+    var random: Boolean? by rememberSaveable { mutableStateOf(false) }
     var contrastMode: ContrastMode? by rememberSaveable { mutableStateOf(null) }
     val isAppInNightMode = LocalThemeAttributes.current.isDark
 
@@ -76,6 +78,7 @@ fun ThemeChooserScreen(
                                 themeName = themeName!!,
                                 themeDynamic = dynamic!!,
                                 themeDayNight = dayNightMode!!,
+                                themeRandom = random!!,
                                 themeContrast = contrastMode!!
                             )
                         }
@@ -92,6 +95,7 @@ fun ThemeChooserScreen(
                 themeName = it.themeName
                 dynamic = it.themeDynamic
                 dayNightMode = it.themeDayNight
+                random = it.themeRandom
                 contrastMode = it.themeContrast
             }
     }
@@ -112,8 +116,7 @@ fun ThemeChooserScreen(
                     onClick = {
                         themeName = themeObj.name
                     },
-                    enabled = isLicenseValid && dynamic != true,
-                    modifier = Modifier
+                    enabled = isLicenseValid && dynamic != true && random != true,
                 )
             }
         }
@@ -164,6 +167,13 @@ fun ThemeChooserScreen(
                 onCheckedChange = { dynamic = it }
             )
         }
+
+        LabeledCheckbox(
+            text = stringResource(Res.string.random_on_start),
+            checked = random == true,
+            enabled = isLicenseValid,
+            onCheckedChange = { random = it }
+        )
     }
 }
 

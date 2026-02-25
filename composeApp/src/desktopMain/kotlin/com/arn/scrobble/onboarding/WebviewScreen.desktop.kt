@@ -1,7 +1,6 @@
 package com.arn.scrobble.onboarding
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,12 +16,12 @@ import com.arn.scrobble.api.UserAccountTemp
 import com.arn.scrobble.api.pleroma.PleromaOauthClientCreds
 import com.arn.scrobble.icons.Icons
 import com.arn.scrobble.icons.automirrored.Help
+import com.arn.scrobble.navigation.PanoRoute
 import com.arn.scrobble.ui.ButtonWithIcon
 import com.arn.scrobble.utils.DesktopStuff
 import com.arn.scrobble.utils.Stuff
 import org.jetbrains.compose.resources.stringResource
 import pano_scrobbler.composeapp.generated.resources.Res
-import pano_scrobbler.composeapp.generated.resources.desktop_webview_not_loaded
 import pano_scrobbler.composeapp.generated.resources.help
 import pano_scrobbler.composeapp.generated.resources.login_in_browser
 
@@ -31,16 +30,14 @@ actual fun WebViewScreen(
     initialUrl: String,
     onSetTitle: (String) -> Unit,
     onBack: () -> Unit,
+    onNavigate: (PanoRoute) -> Unit,
     modifier: Modifier,
     userAccountTemp: UserAccountTemp?,
     pleromaOauthClientCreds: PleromaOauthClientCreds?,
-    bottomContent: @Composable ColumnScope.() -> Unit,
     viewModel: WebViewVM,
 ) {
     val title = stringResource(Res.string.login_in_browser)
-    val webViewNotLoadedMessage = stringResource(Res.string.desktop_webview_not_loaded)
     var statusText by remember { mutableStateOf("") }
-    var helpButtonShown by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         onSetTitle(title)
@@ -56,6 +53,7 @@ actual fun WebViewScreen(
         viewModel.loginState.collect { loginState ->
             handleWebViewStatus(
                 loginState,
+                onNavigate = onNavigate,
                 onSetStatusText = { statusText = it },
                 onBack = onBack,
             )
@@ -65,24 +63,18 @@ actual fun WebViewScreen(
     Column(
         modifier = modifier
     ) {
-
-        if (helpButtonShown) {
-            ButtonWithIcon(
-                onClick = {
-                    helpButtonShown = false
-                    statusText = webViewNotLoadedMessage
-                },
-                icon = Icons.AutoMirrored.Help,
-                text = stringResource(Res.string.help),
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-            )
-        }
+        ButtonWithIcon(
+            onClick = {
+                viewModel.webViewHelp()
+            },
+            icon = Icons.AutoMirrored.Help,
+            text = stringResource(Res.string.help),
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+        )
 
         SelectionContainer {
             Text(text = statusText)
         }
-
-        bottomContent()
     }
 }

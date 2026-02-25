@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.arn.scrobble.BuildKonfig
 import com.arn.scrobble.api.AccountType
 import com.arn.scrobble.api.Requesters
 import com.arn.scrobble.api.Requesters.postString
@@ -22,7 +21,6 @@ import com.arn.scrobble.api.Scrobblables
 import com.arn.scrobble.api.UserAccountSerializable
 import com.arn.scrobble.api.UserCached
 import com.arn.scrobble.api.cache.CacheStrategy
-import com.arn.scrobble.billing.BillingClientData
 import com.arn.scrobble.pref.MainPrefs
 import com.arn.scrobble.ui.PanoSnackbarVisuals
 import com.arn.scrobble.updates.UpdateAction
@@ -67,8 +65,6 @@ import kotlin.math.roundToInt
 object Stuff {
     const val SCROBBLER_PROCESS_NAME = "bgScrobbler"
     const val DEEPLINK_SCHEME = "pano-scrobbler"
-    const val ARG_TAB = "tab"
-    const val PRO_PRODUCT_ID = "pscrobbler_pro"
     const val TYPE_ALL = 0
     const val TYPE_ARTISTS = 1
     const val TYPE_ALBUMS = 2
@@ -204,15 +200,12 @@ object Stuff {
         "com.mrsep.musicrecognizer.enqueued_result",
     )
 
-    const val TV_URL = "https://kawaiidango.github.io/pano-scrobbler/tv"
     const val HOMEPAGE_URL = "https://kawaiidango.github.io"
     const val REPO_URL = "https://github.com/kawaiiDango/pano-scrobbler"
     const val CROWDIN_URL = "https://crowdin.com/project/pscrobbler"
-    const val PRIVACY_POLICY_URL = "https://kawaiidango.github.io/pano-scrobbler/privacy-policy"
-    const val FAQ_URL = "https://kawaiidango.github.io/pano-scrobbler/faq"
-
     const val DISCORD_CLIENT_ID = "1299386213114970172"
     const val EMBEDDED_SERVER_KS = "Jjs5awQQB0YjN10vKCsWPC8AXW0"
+    const val BUG_REPORT_TO = "CA4aTwgbKk8dBB0vEhADEQwBAE8IHkBNHA4"
 
     val DEFAULT_IGNORE_ARTIST_META_WITHOUT_FALLBACK = setOf(
         "com.google.android.youtube",
@@ -292,26 +285,6 @@ object Stuff {
 
     private var mainPrefsCachedValue = MainPrefs()
 
-    val billingClientData by lazy {
-        BillingClientData(
-            proProductId = PRO_PRODUCT_ID,
-            appName = BuildKonfig.APP_NAME,
-            httpPost = { url, body ->
-                Requesters.baseKtorClient.postString(url, body)
-            },
-            lastCheckTime = PlatformStuff.mainPrefs.data.map { it.lastLicenseCheckTime },
-            deviceIdentifier = { PlatformStuff.getDeviceIdentifier() },
-            setLastcheckTime = { time ->
-                PlatformStuff.mainPrefs.updateData { it.copy(lastLicenseCheckTime = time) }
-            },
-            receipt = PlatformStuff.mainPrefs.data.map { it.receipt to it.receiptSignature },
-            setReceipt = { r, s ->
-                PlatformStuff.mainPrefs.updateData { it.copy(receipt = r, receiptSignature = s) }
-            }
-        )
-    }
-
-
     val globalExceptionFlow by lazy { MutableSharedFlow<Throwable>(extraBufferCapacity = 1) }
 
     val globalSnackbarFlow by lazy { MutableSharedFlow<PanoSnackbarVisuals>(extraBufferCapacity = 1) }
@@ -319,6 +292,15 @@ object Stuff {
     val globalUpdateAction by lazy { MutableStateFlow<UpdateAction?>(null) }
 
     fun Number.format() = numberFormat.format(this)!!
+
+    val receiptFlow get() = PlatformStuff.mainPrefs.data.map { it.receipt to it.receiptSignature }
+
+    suspend fun setReceipt(r: String?, s: String?) {
+        PlatformStuff.mainPrefs.updateData { it.copy(receipt = r, receiptSignature = s) }
+    }
+
+    suspend fun httpPost(url: String, body: String) =
+        Requesters.baseKtorClient.postString(url, body)
 
     suspend fun initializeMainPrefsCache(): MainPrefs {
         return if (mainPrefsCachedValue.version == 0)

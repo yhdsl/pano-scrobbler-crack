@@ -35,6 +35,7 @@ import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import java.io.InputStream
 import java.io.OutputStream
+import kotlin.time.Duration.Companion.days
 
 
 @Serializable
@@ -65,6 +66,7 @@ data class MainPrefs(
     val themeName: String = ThemeUtils.defaultThemeName,
     val themeContrast: ContrastMode = ContrastMode.LOW,
     val themeDynamic: Boolean = false,
+    val themeRandom: Boolean = false,
     val themeDayNight: DayNightMode = DayNightMode.DARK,
     val appListWasRun: Boolean = false,
     val lastHomePagerTab: Int = 0,
@@ -124,6 +126,7 @@ data class MainPrefs(
     val tidalSteelSeriesApi: Boolean = true,
     val deezerApi: Boolean = true,
     val lastfmApiAlways: Boolean = false,
+    private val logToFileOnAndroidSince: Long = -1,
     val extractFirstArtistPackages: Set<String> = emptySet(),
     val discordRpc: DiscordRpcSettings = DiscordRpcSettings(),
 ) {
@@ -164,6 +167,7 @@ data class MainPrefs(
         val linkHeartButtonToRating: Boolean = defaultMainPrefs.linkHeartButtonToRating,
         val themeName: String = defaultMainPrefs.themeName,
         val themeContrast: ContrastMode = defaultMainPrefs.themeContrast,
+        val themeRandom: Boolean = defaultMainPrefs.themeRandom,
         val themeDayNight: DayNightMode = defaultMainPrefs.themeDayNight,
         @JsonNames("search_in_source")
         val searchInSource: Boolean = defaultMainPrefs.searchInSource,
@@ -228,6 +232,9 @@ data class MainPrefs(
     val currentAccount
         get() = scrobbleAccounts.firstOrNull { it.type == currentAccountType }
 
+    val logToFileOnAndroid
+        get() = (System.currentTimeMillis() - logToFileOnAndroidSince) <= 15.days.inWholeMilliseconds
+
     fun allowOrBlockAppCopied(appId: String, allow: Boolean): MainPrefs {
         //create copies
         val aSet = allowedPackages.toMutableSet()
@@ -259,6 +266,7 @@ data class MainPrefs(
         linkHeartButtonToRating = prefs.linkHeartButtonToRating,
         themeName = prefs.themeName,
         themeContrast = prefs.themeContrast,
+        themeRandom = prefs.themeRandom,
         themeDayNight = prefs.themeDayNight,
         searchInSource = prefs.searchInSource,
         scrobbleSpotifyRemote = prefs.scrobbleSpotifyRemote,
@@ -290,6 +298,7 @@ data class MainPrefs(
         linkHeartButtonToRating = linkHeartButtonToRating,
         themeName = themeName,
         themeContrast = themeContrast,
+        themeRandom = themeRandom,
         themeDayNight = themeDayNight,
         searchInSource = searchInSource,
         scrobbleSpotifyRemote = scrobbleSpotifyRemote,

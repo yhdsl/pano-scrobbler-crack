@@ -54,8 +54,6 @@ val VER_NAME: String by rootProject.extra
 val BUILD_DATE: String by rootProject.extra
 val APP_NAME: String by rootProject.extra
 val APP_NAME_NO_SPACES: String by rootProject.extra
-val CHANGELOG: String by rootProject.extra
-
 val localProperties = gradleLocalProperties(rootDir, project.providers)
     .map { it.key to it.value.toString() }
     .toMap()
@@ -67,6 +65,7 @@ kotlin {
 
     android {
         compileSdk = libs.versions.targetSdk.get().toInt()
+//        compileSdkPreview = "CinnamonBun"
         namespace = APP_ID
         minSdk = libs.versions.minSdk.get().toInt()
 
@@ -187,7 +186,6 @@ buildkonfig {
         buildConfigField(STRING, "APP_ID", APP_ID, const = true)
         buildConfigField(INT, "VER_CODE", VER_CODE.toString(), const = true)
         buildConfigField(STRING, "VER_NAME", VER_NAME, const = true)
-        buildConfigField(STRING, "CHANGELOG", CHANGELOG, const = true)
         buildConfigField(BOOLEAN, "DEBUG", (!isReleaseBuild).toString(), const = true)
 
         val lastfmKey = localProperties["lastfm.key"]
@@ -483,7 +481,7 @@ tasks.register<Exec>("packageLinuxAppImageAndTarball") {
     )
 }
 
-// graalvm plugin doesnt seem to support this project structure, so directly use the command
+// graalvm plugin doesn't seem to support this project structure, so directly use the command
 tasks.register<Exec>("buildNativeImage") {
     val graalvmHome = System.getenv("GRAALVM_HOME")
     val javaHome = System.getenv("JAVA_HOME")
@@ -962,6 +960,21 @@ tasks.register("copyStringsToAndroid") {
     }
 }
 
+tasks.register<Copy>("copyMds") {
+    val files = arrayOf("faq.md", "changelog.md")
+
+    from(project.layout.projectDirectory.dir("../"))
+    into(project.layout.projectDirectory.dir("src/commonMain/composeResources/files"))
+
+    include(*files)
+    inputs.files(project.layout.projectDirectory.files(*files))
+    outputs.files(
+        project.layout.projectDirectory
+            .dir("src/commonMain/composeResources/files")
+            .files(*files)
+    )
+}
+
 tasks.configureEach {
     when (name) {
         "packageReleaseDmg" -> {
@@ -995,6 +1008,10 @@ tasks.configureEach {
             dependsOn(":androidApp:exportLibraryDefinitions")
             // Optional ordering guard
             mustRunAfter(":androidApp:exportLibraryDefinitions")
+        }
+
+        "copyNonXmlValueResourcesForCommonMain" -> {
+            dependsOn(":composeApp:copyMds")
         }
 
         "updateMaterialSymbols" -> {

@@ -47,7 +47,7 @@ import com.arn.scrobble.automation.Automation
 import com.arn.scrobble.billing.BillingRepository
 import com.arn.scrobble.crashreporter.CrashReporter
 import com.arn.scrobble.discordrpc.DiscordRpc
-import com.arn.scrobble.logger.JvmLogger
+import com.arn.scrobble.logger.JavaUtilFileLogger
 import com.arn.scrobble.media.PlayingTrackNotifyEvent
 import com.arn.scrobble.media.notifyPlayingTrackEvent
 import com.arn.scrobble.pref.AppItem
@@ -113,9 +113,10 @@ private fun init() {
     // init: run once
 
     Logger.setLogWriters(
-        JvmLogger(
-            logToFile = true,
-            redirectStderr = !BuildKonfig.DEBUG
+        JavaUtilFileLogger(
+            isEnabled = true,
+            redirectStderr = !BuildKonfig.DEBUG,
+            printToStd = true
         )
     )
     Logger.setTag("scrobbler")
@@ -128,9 +129,16 @@ private fun init() {
     PanoNativeComponents.init()
 
     VariantStuff.billingRepository = BillingRepository(
-        null,
-        Stuff.billingClientData,
-        PlatformStuff::openInBrowser
+        lastCheckTime = PlatformStuff.mainPrefs.data.map { it.lastLicenseCheckTime },
+        setLastcheckTime = { time ->
+            PlatformStuff.mainPrefs.updateData { it.copy(lastLicenseCheckTime = time) }
+        },
+        receipt = Stuff.receiptFlow,
+        setReceipt = Stuff::setReceipt,
+        httpPost = Stuff::httpPost,
+        deviceIdentifier = PlatformStuff::getDeviceIdentifier,
+        openInBrowser = PlatformStuff::openInBrowser,
+        context = null
     )
 
     VariantStuff.crashReporter = CrashReporter(null)
@@ -421,19 +429,21 @@ fun main(args: Array<String>) {
         // the AWT tray doesn't work on KDE
         if (DesktopStuff.os != DesktopStuff.Os.Linux) {
 
+            var trayMouseListenerSet by remember { mutableStateOf(false) }
+            var trayMenuPos by remember { mutableStateOf<Point?>(null) }
+
             trayData?.let { trayData ->
                 Tray(
                     icon = BitmapPainter(trayData.bitmap),
                     tooltip = trayData.tooltip,
-                    state = trayState
+                    state = trayState,
+                    onAction = ::openIfNeeded
                 )
             }
 
-            var trayMouseListenerSet by remember { mutableStateOf(false) }
-            var trayMenuPos by remember { mutableStateOf<Point?>(null) }
 
             LaunchedEffect(trayData) {
-                var delayJob: Job? = null
+                var trayMenuDelayJob: Job? = null
 
                 if (!trayMouseListenerSet && trayData != null) {
                     val trayIcon = SystemTray.getSystemTray().trayIcons?.firstOrNull()
@@ -444,22 +454,21 @@ fun main(args: Array<String>) {
                                 override fun mouseClicked(e: MouseEvent?) {
                                     // open main window on left double click
                                     when (e?.button) {
-                                        MouseEvent.BUTTON1 if e.clickCount == 2 -> {
-                                            openIfNeeded()
-                                            trayMenuPos = null
-                                            delayJob?.cancel()
-                                        }
-
                                         MouseEvent.BUTTON1 if e.clickCount == 1 -> {
-                                            delayJob = GlobalScope.launch {
+                                            trayMenuDelayJob = GlobalScope.launch {
                                                 delay(100)
                                                 trayMenuPos = e.locationOnScreen
                                             }
                                         }
 
                                         MouseEvent.BUTTON3 -> {
-                                            delayJob?.cancel()
+                                            trayMenuDelayJob?.cancel()
                                             trayMenuPos = e.locationOnScreen
+                                        }
+
+                                        else -> {
+                                            trayMenuDelayJob?.cancel()
+                                            trayMenuPos = null
                                         }
                                     }
                                 }
