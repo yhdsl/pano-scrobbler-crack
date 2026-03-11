@@ -32,9 +32,9 @@ class App : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
 
-        if (BuildConfig.DEBUG) {
-            enableStrictMode()
-        }
+//        if (BuildConfig.DEBUG) {
+//            enableStrictMode()
+//        }
 
         Initializer.init(this)
 
@@ -42,6 +42,7 @@ class App : Application(), Configuration.Provider {
             .resolve("last_license_check_time.txt")
 
         VariantStuff.billingRepository = BillingRepository(
+            scope = Stuff.appScope,
             lastCheckTime = flow {
                 val t = withContext(Dispatchers.IO) {
                     lastLicenseCheckTimeFile
@@ -75,9 +76,9 @@ class App : Application(), Configuration.Provider {
         // the built-in content provider initializer only runs in the main process
         val crashlyticsEnabled = AndroidStuff.isMainProcess && crashReporter.isEnabled
 
-        if (crashlyticsEnabled) {
+        if (crashlyticsEnabled && BuildConfig.DEBUG) {
             val crashlyticsKeys = mapOf(
-                "isDebug" to BuildConfig.DEBUG.toString(),
+                "isDebug" to true.toString(),
             )
 
             crashReporter.config(crashlyticsKeys)

@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
 import pano_scrobbler.composeapp.generated.resources.Res
 import pano_scrobbler.composeapp.generated.resources.mute
@@ -71,10 +72,15 @@ class SessListener(
         scope.launch {
             scrobblerEnabled.collectLatest {
                 try {
-                    TileService.requestListeningState(
-                        AndroidStuff.applicationContext,
-                        ComponentName(AndroidStuff.applicationContext, MasterSwitchQS::class.java)
-                    )
+                    withContext(Dispatchers.IO) {
+                        TileService.requestListeningState(
+                            AndroidStuff.applicationContext,
+                            ComponentName(
+                                AndroidStuff.applicationContext,
+                                MasterSwitchQS::class.java
+                            )
+                        )
+                    }
                 } catch (e: Exception) {
                     Logger.e(e) { "Failed to update QS tile state" }
                 }
@@ -127,9 +133,9 @@ class SessListener(
             val appId = controller.packageName
             val sessionId = controller.tagCompat
 
-            val uniqueId = "$appId|$sessionId@" + controller.sessionToken.hashCode().toHexString()
+            val notiKey = "$appId|$sessionId"
 
-            val playingTrackInfo = createTrackInfo(controller.packageName, uniqueId)
+            val playingTrackInfo = createTrackInfo(controller.packageName, notiKey)
 
             val sessionTracker = AndroidSessionTracker(controller, playingTrackInfo)
 

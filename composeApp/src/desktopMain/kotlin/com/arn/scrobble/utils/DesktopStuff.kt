@@ -9,6 +9,7 @@ import com.arn.scrobble.work.DesktopWorkManager
 import java.io.File
 import java.net.URI
 import java.net.URISyntaxException
+import kotlin.system.exitProcess
 
 
 object DesktopStuff {
@@ -69,6 +70,7 @@ object DesktopStuff {
                     noUpdate = true
                 }
 
+                "--${Automation.DESKTOP_QUIT}",
                 "--${Automation.ENABLE}",
                 "--${Automation.DISABLE}",
                 "--${Automation.LOVE}",
@@ -98,99 +100,6 @@ object DesktopStuff {
             automationArg = automationArg
         ).also {
             cmdlineArgs = it
-        }
-    }
-
-    fun linuxAutostartFile(): File? {
-        return when (os) {
-            Os.Linux -> {
-                System.getenv("XDG_CONFIG_HOME")?.ifEmpty { null }?.let {
-                    File(it, "autostart/pano-scrobbler.desktop")
-                } ?: File(
-                    System.getProperty("user.home"),
-                    ".config/autostart/pano-scrobbler.desktop"
-                )
-            }
-
-            else -> null
-        }
-    }
-
-    fun linuxAutostartExec(): String? {
-        return when (os) {
-            Os.Linux -> {
-                val execPath = if (System.getenv("APPIMAGE") != null)
-                    System.getenv("APPIMAGE").let { "\"$it\"" }
-                else
-                    File(
-                        ProcessHandle.current().info().command().get()
-                    ).absolutePath.let { "\"$it\"" }
-
-                "$execPath --$MINIMIZED_ARG"
-            }
-
-            else -> null
-        }
-    }
-
-    fun addOrRemoveFromStartup(add: Boolean) {
-        when (os) {
-            Os.Windows -> {
-                // not implemented. will not implement for windows
-            }
-
-            Os.Linux -> {
-                // linux. create or delete .desktop file in ~/.config/autostart
-                val execPath = linuxAutostartExec() ?: return
-
-                val desktopFile = linuxAutostartFile() ?: return
-
-                desktopFile.parentFile.mkdirs()
-
-                if (add) {
-                    desktopFile.writeText(
-                        """
-                        [Desktop Entry]
-                        Type=Application
-                        Name=${BuildKonfig.APP_NAME}
-                        Comment=Feature packed music tracker
-                        Terminal=false
-                        Exec=$execPath
-                        Icon=pano-scrobbler
-                        X-GNOME-Autostart-enabled=true
-                        StartupWMClass=pano-scrobbler
-                        Categories=AudioVideo;Audio;
-                        NoDisplay=false
-                        """.trimIndent()
-                    )
-                } else {
-                    desktopFile.delete()
-                }
-            }
-
-            Os.Macos -> {
-                // will not implement for macos
-            }
-        }
-    }
-
-    fun isAddedToStartup(): Boolean {
-        return when (os) {
-            Os.Windows -> {
-                // not implemented. will not implement for windows
-                false
-            }
-
-            Os.Linux -> {
-                val execPath = linuxAutostartExec() ?: return false
-                val desktopFile = linuxAutostartFile() ?: return false
-
-                desktopFile.exists() && desktopFile.readText().contains(execPath)
-            }
-
-            Os.Macos -> {
-                false
-            }
         }
     }
 
@@ -225,10 +134,6 @@ object DesktopStuff {
         if (System.getProperty(prop) == null) {
             System.setProperty(prop, execDirPath)
 
-            prop = "compose.application.configure.swing.globals"
-            if (System.getProperty(prop) == null)
-                System.setProperty(prop, "true")
-
             prop = "sun.java2d.dpiaware"
             if (System.getProperty(prop) == null)
                 System.setProperty(prop, "true")
@@ -251,6 +156,12 @@ object DesktopStuff {
         } catch (e: URISyntaxException) {
             Logger.e(e) { "Error while setting up socks proxy from environment" }
         }
+
+        // skiko
+        System.setProperty("skiko.rendering.laf.global", false.toString())
+        System.setProperty("skiko.rendering.useScreenMenuBar", false.toString())
+        System.setProperty("skiko.linux.autodpi", true.toString())
+        System.setProperty("compose.application.configure.swing.globals", true.toString())
     }
 
     fun getLibraryPath(name: String): String {
@@ -283,9 +194,10 @@ object DesktopStuff {
         }
     }
 
-    fun prepareToExit() {
+    fun exit() {
         PanoNativeComponents.stopListeningMedia()
         DesktopWorkManager.clearAll()
         PanoDb.db.close()
+        exitProcess(0)
     }
 }

@@ -164,12 +164,12 @@ suspend fun listenForPlayingTrackEvents(
 
                 if (event.showUnscrobbledNotification && event.hash != null) {
                     PanoNotifications.notifyUnscrobbled(
-                        trackInfo.uniqueId,
+                        trackInfo.notiKey,
                         trackInfo.toScrobbleData(true),
                         event.hash
                     )
                 } else {
-                    PanoNotifications.removeNotificationByKey(trackInfo.uniqueId)
+                    PanoNotifications.removeNotificationByKey(trackInfo.notiKey)
                 }
             }
 
@@ -211,7 +211,7 @@ suspend fun listenForPlayingTrackEvents(
                 if (scrobbleData.artist.isEmpty() || scrobbleData.track.isEmpty())
                     return@collect
 
-                mediaListener.scope.launch(Dispatchers.IO) {
+                Stuff.appScope.launch(Dispatchers.IO) {
                     ScrobbleEverywhere.loveOrUnlove(
                         scrobbleData.toTrack().copy(msid = msid),
                         loved

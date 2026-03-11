@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.arn.scrobble.billing.LocalLicenseValidState
 import com.arn.scrobble.db.RegexEdit
 import com.arn.scrobble.icons.Apps
 import com.arn.scrobble.icons.Block
@@ -51,6 +53,7 @@ import com.arn.scrobble.icons.MatchCase
 import com.arn.scrobble.icons.MoreVert
 import com.arn.scrobble.icons.Public
 import com.arn.scrobble.icons.Settings
+import com.arn.scrobble.icons.Stop
 import com.arn.scrobble.icons.SwipeLeftAlt
 import com.arn.scrobble.icons.ToggleOff
 import com.arn.scrobble.icons.ToggleOn
@@ -70,7 +73,6 @@ import com.arn.scrobble.utils.Stuff.collectAsStateWithInitialValue
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import pano_scrobbler.composeapp.generated.resources.Res
 import pano_scrobbler.composeapp.generated.resources.charts_custom
@@ -82,9 +84,10 @@ import pano_scrobbler.composeapp.generated.resources.edit_presets
 import pano_scrobbler.composeapp.generated.resources.edit_regex_test
 import pano_scrobbler.composeapp.generated.resources.enable
 import pano_scrobbler.composeapp.generated.resources.item_options
+import pano_scrobbler.composeapp.generated.resources.max_n
 import pano_scrobbler.composeapp.generated.resources.move_down
 import pano_scrobbler.composeapp.generated.resources.move_up
-import pano_scrobbler.composeapp.generated.resources.num_regex_edits
+import pano_scrobbler.composeapp.generated.resources.regex_rules
 import pano_scrobbler.composeapp.generated.resources.settings
 
 @Composable
@@ -145,6 +148,7 @@ fun RegexEditsScreen(
 }
 
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun RegexEditsList(
     presetsWithState: List<Pair<RegexPreset, Boolean>>,
@@ -159,6 +163,8 @@ private fun RegexEditsList(
     onImport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isLicenseValid = LocalLicenseValidState.current
+    val maxPatterns = if (isLicenseValid) Stuff.MAX_PATTERNS_HIGH else Stuff.MAX_PATTERNS
     val scope = rememberCoroutineScope()
     val nonRegexItemsCount = remember {
         RegexPresets.filteredPresets.size + listOfNotNull(
@@ -244,25 +250,42 @@ private fun RegexEditsList(
         }
 
         item(key = "custom_header") {
-            if (regexEdits.size >= Stuff.MAX_PATTERNS) {
-                Text(
-                    text = stringResource(Res.string.edit_max_patterns, Stuff.MAX_PATTERNS),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier
-                        .animateItem()
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                )
-            } else {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .animateItem()
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
                 Text(
                     text = stringResource(Res.string.charts_custom),
                     style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier
-                        .animateItem()
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
                 )
+
+                Text(
+                    text = "•",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+
+                val maxPatternsText = if (regexEdits.size >= maxPatterns)
+                    stringResource(Res.string.edit_max_patterns, maxPatterns)
+                else
+                    stringResource(Res.string.max_n, maxPatterns)
+
+                if (isLicenseValid)
+                    Text(
+                        maxPatternsText,
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                else
+                    TextButton(
+                        onClick = {
+                            onNavigate(PanoRoute.Billing)
+                        },
+                    ) {
+                        Text(maxPatternsText)
+                    }
             }
         }
 
@@ -270,7 +293,7 @@ private fun RegexEditsList(
             item(key = "no_custom_regexes") {
                 EmptyTextWithImportButtonOnTv(
                     visible = true,
-                    text = pluralStringResource(Res.plurals.num_regex_edits, 0, 0),
+                    text = stringResource(Res.string.regex_rules) + ": " + 0,
                     onButtonClick = onImport
                 )
             }
@@ -492,6 +515,9 @@ private fun RegexEditItem(
 @Composable
 private fun getModifierIcons(regexEdit: RegexEdit): List<ImageVector> {
     val m = mutableListOf<ImageVector>()
+
+    m += if (regexEdit.continueMatching) Icons.KeyboardArrowDown
+    else Icons.Stop
 
     if (!regexEdit.enabled) m += Icons.ToggleOff
 

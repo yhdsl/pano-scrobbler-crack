@@ -58,10 +58,7 @@ import com.arn.scrobble.icons.Favorite
 import com.arn.scrobble.icons.History
 import com.arn.scrobble.icons.HourglassEmpty
 import com.arn.scrobble.icons.Icons
-import com.arn.scrobble.icons.Info
-import com.arn.scrobble.icons.OpenInBrowser
 import com.arn.scrobble.icons.Refresh
-import com.arn.scrobble.icons.Warning
 import com.arn.scrobble.main.PanoPullToRefresh
 import com.arn.scrobble.navigation.PanoRoute
 import com.arn.scrobble.ui.AutoRefreshEffect
@@ -83,13 +80,12 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import pano_scrobbler.composeapp.generated.resources.Res
 import pano_scrobbler.composeapp.generated.resources.also_available_on
-import pano_scrobbler.composeapp.generated.resources.android
 import pano_scrobbler.composeapp.generated.resources.charts_custom
 import pano_scrobbler.composeapp.generated.resources.desktop
 import pano_scrobbler.composeapp.generated.resources.loved
 import pano_scrobbler.composeapp.generated.resources.no_scrobbles
 import pano_scrobbler.composeapp.generated.resources.not_running
-import pano_scrobbler.composeapp.generated.resources.num_pending
+import pano_scrobbler.composeapp.generated.resources.pending_scrobbles
 import pano_scrobbler.composeapp.generated.resources.random_text
 import pano_scrobbler.composeapp.generated.resources.recents
 import pano_scrobbler.composeapp.generated.resources.reload
@@ -136,12 +132,12 @@ fun ScrobblesScreen(
     else
         remember { mutableStateOf(false) }
     val accountType by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.currentAccountType }
-    val otherPlatformsLearnt by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.otherPlatformsLearnt }
+    val otherPlatformsLearnt by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.desktopAppLearnt }
     var pendingScrobblesExpanded by rememberSaveable { mutableStateOf(false) }
     var expandedKey by rememberSaveable { mutableStateOf<String?>(null) }
     var canExpandNowPlaying by rememberSaveable { mutableStateOf(true) }
-    val pendingScrobblesheader =
-        pluralStringResource(Res.plurals.num_pending, pendingScrobbles.size, pendingScrobbles.size)
+    val pendingScrobblesHeader = stringResource(Res.string.pending_scrobbles) + ": " +
+            pendingScrobbles.size
     val canLove = accountType != AccountType.PLEROMA
     val density = LocalDensity.current
     val listViewportHeight = remember {
@@ -348,73 +344,59 @@ fun ScrobblesScreen(
 
                 // todo remove canEditOrDelete
                 if (user.isSelf && (!nlsEnabled || !scrobblerEnabled || scrobblerRunning == false ||
-                            (!otherPlatformsLearnt && canEditOrDelete && !PlatformStuff.isTv))
+                            (!otherPlatformsLearnt && canEditOrDelete && !PlatformStuff.isTv && !PlatformStuff.isDesktop))
                 ) {
                     item("notice") {
-                        val text: String
-                        val icon: ImageVector
-                        val onClick: () -> Unit
-                        var onDismiss: (() -> Unit)? = null
-
                         when {
-                            !nlsEnabled -> {
-                                text = stringResource(Res.string.scrobbler_off)
-                                icon = Icons.Info
-
-                                onClick = {
-                                    viewModel.updateScrobblerServiceStatus()
-                                    onNavigate(PanoRoute.Onboarding)
-                                }
-                            }
-
-                            !scrobblerEnabled -> {
-                                text = stringResource(Res.string.scrobbler_off)
-                                icon = Icons.Info
-
-                                onClick = { onNavigate(PanoRoute.Prefs) }
+                            !scrobblerEnabled || !nlsEnabled -> {
+                                DismissableNotice(
+                                    title = stringResource(Res.string.scrobbler_off),
+                                    onClick = {
+                                        if (!scrobblerEnabled) {
+                                            onNavigate(PanoRoute.Prefs)
+                                        } else {
+                                            viewModel.updateScrobblerServiceStatus()
+                                            onNavigate(PanoRoute.Onboarding)
+                                        }
+                                    },
+                                    modifier = Modifier.animateItem()
+                                )
                             }
 
                             scrobblerRunning == false -> {
-                                text = stringResource(Res.string.not_running)
-                                icon = Icons.Warning
-                                onClick = { onNavigate(PanoRoute.Modal.FixIt) }
+                                DismissableNotice(
+                                    title = stringResource(Res.string.not_running),
+                                    onClick = { onNavigate(PanoRoute.Modal.FixIt) },
+                                    modifier = Modifier.animateItem()
+                                )
                             }
 
                             else -> {
-                                text = stringResource(
-                                    Res.string.also_available_on,
-                                    if (PlatformStuff.isDesktop)
-                                        stringResource(Res.string.android)
-                                    else
+                                DismissableNotice(
+                                    title = stringResource(
+                                        Res.string.also_available_on,
                                         stringResource(Res.string.desktop)
-                                )
-                                icon = Icons.OpenInBrowser
-                                onClick = {
-                                    onNavigate(PanoRoute.Modal.ShowLink(Stuff.HOMEPAGE_URL))
-                                }
-                                onDismiss = {
-                                    scope.launch {
-                                        PlatformStuff.mainPrefs.updateData {
-                                            it.copy(otherPlatformsLearnt = true)
+                                    ),
+                                    onClick = {
+                                        onNavigate(PanoRoute.Modal.ShowLink(Stuff.HOMEPAGE_URL))
+                                    },
+                                    onDismiss = {
+                                        scope.launch {
+                                            PlatformStuff.mainPrefs.updateData {
+                                                it.copy(desktopAppLearnt = true)
+                                            }
                                         }
-                                    }
-                                }
+                                    },
+                                    modifier = Modifier.animateItem()
+                                )
                             }
                         }
-
-                        DismissableNotice(
-                            title = text,
-                            icon = icon,
-                            onDismiss = onDismiss,
-                            onClick = onClick,
-                            modifier = Modifier.animateItem()
-                        )
                     }
                 }
 
                 if (selectedType == ScrobblesType.RECENTS && user.isSelf) {
                     pendingScrobblesListItems(
-                        headerText = pendingScrobblesheader,
+                        headerText = pendingScrobblesHeader,
                         headerIcon = Icons.HourglassEmpty,
                         items = pendingScrobbles,
                         expanded = pendingScrobblesExpanded,

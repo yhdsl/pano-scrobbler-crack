@@ -50,6 +50,7 @@ keyboard_arrow_down
 keyboard_arrow_up
 keyboard_double_arrow_down
 keyboard_double_arrow_up
+lock
 match_case
 menu
 mic
@@ -64,6 +65,7 @@ play_circle
 public
 question_mark
 refresh
+regular_expression
 reset_settings
 save
 schedule
@@ -71,6 +73,7 @@ search
 settings
 share
 skip_next
+stop
 swap_vert
 swipe_left_alt
 tag

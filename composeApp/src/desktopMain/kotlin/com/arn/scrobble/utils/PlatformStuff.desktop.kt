@@ -18,7 +18,6 @@ import com.arn.scrobble.ui.PanoSnackbarVisuals
 import com.arn.scrobble.utils.Stuff.stateInWithCache
 import io.ktor.http.encodeURLPath
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -55,6 +54,14 @@ actual object PlatformStuff {
             DesktopStuff.noUpdateCheck
 
     actual const val hasSystemLocaleStore = false
+
+    actual val appIdPlaceholder
+        get() =
+            if (DesktopStuff.os == DesktopStuff.Os.Linux)
+                "<MPRIS_ID>"
+            else
+                "<AUMID>"
+
 
     actual val filesDir by lazy {
         File(DesktopStuff.appDataRoot, "data").also { it.mkdirs() }
@@ -150,9 +157,13 @@ actual object PlatformStuff {
 
     }
 
-    private val seenApps = mainPrefs.data.stateInWithCache(GlobalScope) { it.seenApps }
+    private val seenApps by lazy { mainPrefs.data.stateInWithCache(Stuff.appScope) { it.seenApps } }
     actual fun loadApplicationLabel(appId: String): String =
         seenApps.value[appId] ?: ""
+
+    actual fun doesAppExist(appId: String): Boolean {
+        return seenApps.value.containsKey(appId)
+    }
 
     actual fun copyToClipboard(text: String) {
         val stringSelection = StringSelection(text)

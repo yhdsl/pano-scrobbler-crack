@@ -37,8 +37,8 @@ import com.arn.scrobble.icons.Favorite
 import com.arn.scrobble.icons.Icons
 import com.arn.scrobble.icons.Keep
 import com.arn.scrobble.icons.Palette
+import com.arn.scrobble.icons.RegularExpression
 import com.arn.scrobble.icons.Share
-import com.arn.scrobble.icons.SwipeLeftAlt
 import com.arn.scrobble.icons.automirrored.Help
 import com.arn.scrobble.main.MainViewModel
 import com.arn.scrobble.ui.ButtonWithIcon
@@ -53,6 +53,7 @@ import com.arn.scrobble.utils.VariantStuff
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import pano_scrobbler.composeapp.generated.resources.Res
+import pano_scrobbler.composeapp.generated.resources.at_least
 import pano_scrobbler.composeapp.generated.resources.automation
 import pano_scrobbler.composeapp.generated.resources.billing_block
 import pano_scrobbler.composeapp.generated.resources.billing_max_devices_reached
@@ -75,6 +76,7 @@ import pano_scrobbler.composeapp.generated.resources.pro_also_get
 import pano_scrobbler.composeapp.generated.resources.pro_support
 import pano_scrobbler.composeapp.generated.resources.purchase_pending
 import pano_scrobbler.composeapp.generated.resources.thank_you
+import pano_scrobbler.composeapp.generated.resources.upto_n_regexes
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -92,14 +94,18 @@ fun BillingScreen(
         Icons.Palette to stringResource(Res.string.pref_themes),
         Icons.Apps to stringResource(Res.string.billing_scrobble_source),
         Icons.Block to stringResource(Res.string.billing_block),
-        Icons.Keep to stringResource(Res.string.billing_pin_friends, 10),
+        Icons.Keep to stringResource(Res.string.billing_pin_friends, Stuff.MAX_PINNED_FRIENDS),
         if (!PlatformStuff.isTv && !PlatformStuff.isDesktop)
             Icons.Favorite to stringResource(Res.string.pref_link_heart_button_rating)
         else null,
         if (!PlatformStuff.isTv)
             Icons.Automation to stringResource(Res.string.automation)
         else null,
-        Icons.SwipeLeftAlt to stringResource(Res.string.billing_regex_extract),
+        Icons.RegularExpression to stringResource(
+            Res.string.upto_n_regexes,
+            Stuff.MAX_PATTERNS_HIGH
+        ),
+        Icons.RegularExpression to stringResource(Res.string.billing_regex_extract),
         if (!PlatformStuff.isTv && !PlatformStuff.isDesktop)
             Icons.Share to stringResource(Res.string.billing_sharing)
         else null,
@@ -166,7 +172,8 @@ fun BillingScreen(
             Text(
                 stringResource(
                     Res.string.code_will_be_sent,
-                    purchaseMethodClicked!!.displayName
+                    purchaseMethodClicked!!.displayName,
+                    stringResource(Res.string.at_least, formattedPrice.orEmpty())
                 ),
                 color = MaterialTheme.colorScheme.tertiary,
                 style = MaterialTheme.typography.titleMediumEmphasized,
@@ -201,8 +208,8 @@ fun BillingScreen(
                             )
 
                             Text(
-                                text = (formattedPrice ?: "") +
-                                        ", " + stringResource(Res.string.one_time_purchase),
+                                text = stringResource(Res.string.at_least, formattedPrice ?: "") +
+                                        " • " + stringResource(Res.string.one_time_purchase),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }

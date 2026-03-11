@@ -49,14 +49,11 @@ import com.arn.scrobble.work.CommonWorkState
 import com.arn.scrobble.work.DigestWork
 import com.arn.scrobble.work.DigestWorker
 import com.arn.scrobble.work.UpdaterWork
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import pano_scrobbler.composeapp.generated.resources.Res
 import pano_scrobbler.composeapp.generated.resources.album_art
@@ -79,10 +76,9 @@ import pano_scrobbler.composeapp.generated.resources.lastfm
 import pano_scrobbler.composeapp.generated.resources.light
 import pano_scrobbler.composeapp.generated.resources.min_track_duration
 import pano_scrobbler.composeapp.generated.resources.notification_channel_blocked
-import pano_scrobbler.composeapp.generated.resources.num_blocked_metadata
-import pano_scrobbler.composeapp.generated.resources.num_simple_edits
 import pano_scrobbler.composeapp.generated.resources.pref_about
 import pano_scrobbler.composeapp.generated.resources.pref_auto_detect
+import pano_scrobbler.composeapp.generated.resources.pref_blocked_metadata
 import pano_scrobbler.composeapp.generated.resources.pref_check_updates
 import pano_scrobbler.composeapp.generated.resources.pref_crashlytics_enabled
 import pano_scrobbler.composeapp.generated.resources.pref_delay
@@ -91,7 +87,7 @@ import pano_scrobbler.composeapp.generated.resources.pref_delay_per
 import pano_scrobbler.composeapp.generated.resources.pref_enabled_apps_summary
 import pano_scrobbler.composeapp.generated.resources.pref_export
 import pano_scrobbler.composeapp.generated.resources.pref_export_desc
-import pano_scrobbler.composeapp.generated.resources.pref_fetch_album
+import pano_scrobbler.composeapp.generated.resources.pref_fetch_missing_album
 import pano_scrobbler.composeapp.generated.resources.pref_first_day_of_week
 import pano_scrobbler.composeapp.generated.resources.pref_imexport
 import pano_scrobbler.composeapp.generated.resources.pref_import
@@ -121,6 +117,7 @@ import pano_scrobbler.composeapp.generated.resources.regex_rules
 import pano_scrobbler.composeapp.generated.resources.scrobble_services
 import pano_scrobbler.composeapp.generated.resources.scrobbles
 import pano_scrobbler.composeapp.generated.resources.search
+import pano_scrobbler.composeapp.generated.resources.simple_edits
 import pano_scrobbler.composeapp.generated.resources.spotify
 import pano_scrobbler.composeapp.generated.resources.when_not_using
 import java.util.Calendar
@@ -210,10 +207,6 @@ fun PrefsScreen(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            isAddedToStartup = PlatformSpecificPrefs.isAddedToStartup()
-        }
-
         if (!PlatformStuff.isDesktop && !PlatformStuff.isTv) {
             snapshotFlow { firstDayOfWeek }
                 .drop(1) // only for changes
@@ -233,9 +226,7 @@ fun PrefsScreen(
 
         PlatformSpecificPrefs.prefQuickSettings(this, scrobblerEnabled)
 
-        PlatformSpecificPrefs.addToStartup(this, isAddedToStartup) {
-            isAddedToStartup = it
-        }
+        PlatformSpecificPrefs.prefAutostart(this)
 
         stickyHeader("scrobbling_header") {
             SimpleHeaderItem(
@@ -505,11 +496,7 @@ fun PrefsScreen(
 
         item("simple_edits") {
             TextPref(
-                text = pluralStringResource(
-                    Res.plurals.num_simple_edits,
-                    numSimpleEdits,
-                    numSimpleEdits
-                ),
+                text = stringResource(Res.string.simple_edits) + ": " + numSimpleEdits.format(),
                 onClick = {
                     onNavigate(PanoRoute.SimpleEdits)
                 }
@@ -518,7 +505,7 @@ fun PrefsScreen(
 
         item("regex_edits") {
             TextPref(
-                text = "(${numRegexEdits.format()}) " + stringResource(Res.string.regex_rules),
+                text = stringResource(Res.string.regex_rules) + ": " + numRegexEdits.format(),
                 onClick = {
                     onNavigate(PanoRoute.RegexEdits)
                 }
@@ -527,11 +514,7 @@ fun PrefsScreen(
 
         item("blocked_metadata") {
             TextPref(
-                text = pluralStringResource(
-                    Res.plurals.num_blocked_metadata,
-                    numBlockedMetadata,
-                    numBlockedMetadata
-                ),
+                text = stringResource(Res.string.pref_blocked_metadata) + ": " + numBlockedMetadata.format(),
                 onClick = {
                     onNavigate(PanoRoute.BlockedMetadatas)
                 },
@@ -609,7 +592,10 @@ fun PrefsScreen(
 
         item(MainPrefs::fetchAlbum.name) {
             SwitchPref(
-                text = stringResource(Res.string.pref_fetch_album),
+                text = stringResource(
+                    Res.string.pref_fetch_missing_album,
+                    stringResource(Res.string.lastfm)
+                ),
                 value = fetchAlbum,
                 copyToSave = { copy(fetchAlbum = it) }
             )

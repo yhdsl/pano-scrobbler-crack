@@ -35,6 +35,8 @@ expect object PlatformStuff {
 
     val hasSystemLocaleStore: Boolean
 
+    val appIdPlaceholder: String
+
     fun isScrobblerRunning(): Boolean
 
     fun openInBrowser(url: String)
@@ -47,6 +49,8 @@ expect object PlatformStuff {
     fun getDatabaseBuilder(): RoomDatabase.Builder<PanoDb>
 
     fun loadApplicationLabel(appId: String): String
+    
+    fun doesAppExist(appId: String): Boolean
 
     fun copyToClipboard(text: String)
 
