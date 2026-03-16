@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Fix permissions
         if: matrix.resources-dir != 'windows-x64'
@@ -46,7 +46,7 @@ jobs:
 
       - if: matrix.resources-dir == 'linux-x64'
         name: Upload Android binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pano-scrobbler-android-universal
           path: ./androidApp/build/outputs/apk/releaseGithub/pano-scrobbler-releaseGithub-unsigned.apk

@@ -20,9 +20,10 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.core.net.toUri
 import androidx.datastore.core.MultiProcessDataStoreFactory
-import androidx.room.ExperimentalRoomApi
-import androidx.room.Room
-import androidx.room.RoomDatabase
+import androidx.room3.ExperimentalRoomApi
+import androidx.room3.Room
+import androidx.room3.RoomDatabase
+import androidx.sqlite.driver.AndroidSQLiteDriver
 import co.touchlab.kermit.Logger
 import com.arn.scrobble.BuildKonfig
 import com.arn.scrobble.api.lastfm.Album
@@ -109,9 +110,6 @@ actual object PlatformStuff {
     actual val supportsDynamicColors = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     actual const val isDesktop = false
-
-    actual const val noUpdateCheck = true
-
 
     actual fun isScrobblerRunning(): Boolean {
         val serviceComponent = ComponentName(applicationContext, NLService::class.java)
@@ -253,7 +251,7 @@ actual object PlatformStuff {
             context = applicationContext,
             name = dbFile.absolutePath
         )
-//            .setDriver(AndroidSQLiteDriver())
+            .setDriver(AndroidSQLiteDriver())
             .enableMultiInstanceInvalidation()
             .setAutoCloseTimeout(7, TimeUnit.MINUTES)
     }

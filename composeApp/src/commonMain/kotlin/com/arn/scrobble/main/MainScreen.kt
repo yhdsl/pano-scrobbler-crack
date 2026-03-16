@@ -231,6 +231,7 @@ fun PanoAppContent(
 
     val bottomSheetStrategy =
         remember { BottomSheetSceneStrategy<PanoRoute>(::removeAllModals) }
+    val singlePaneStrategy = remember { SinglePaneSceneStrategy<PanoRoute>() }
 
     // show onboarding again when logged out
     LaunchedEffect(currentUser == null) {
@@ -281,10 +282,9 @@ fun PanoAppContent(
         val storedHashcode = PlatformStuff.mainPrefs.data.map { it.changelogSeenHashcode }.first()
 
         if (storedHashcode != changelogHashcode) {
-            if (storedHashcode != null) {
+            if (storedHashcode != null && currentUser != null) { // don't show on onboarding
                 navigate(PanoRoute.Modal.Changelog(changelog))
             }
-            // else is fresh install
             PlatformStuff.mainPrefs.updateData { it.copy(changelogSeenHashcode = changelogHashcode) }
         }
     }
@@ -447,8 +447,10 @@ fun PanoAppContent(
                                         rememberSaveableStateHolderNavEntryDecorator(),
                                         rememberViewModelStoreNavEntryDecorator()
                                     ),
-                                    sceneStrategy = bottomSheetStrategy then
-                                            SinglePaneSceneStrategy(),
+                                    sceneStrategies = listOf(
+                                        bottomSheetStrategy,
+                                        singlePaneStrategy
+                                    ),
                                     transitionSpec = {
                                         ContentTransform(
                                             fadeIn() +
