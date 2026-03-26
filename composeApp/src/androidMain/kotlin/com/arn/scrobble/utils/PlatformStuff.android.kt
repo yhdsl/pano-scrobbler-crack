@@ -32,6 +32,7 @@ import com.arn.scrobble.api.lastfm.MusicEntry
 import com.arn.scrobble.api.lastfm.Track
 import com.arn.scrobble.db.PanoDb
 import com.arn.scrobble.media.NLService
+import com.arn.scrobble.onboarding.WebViewProxyOverride
 import com.arn.scrobble.pref.MainPrefs
 import com.arn.scrobble.ui.PanoSnackbarVisuals
 import com.arn.scrobble.utils.AndroidStuff.applicationContext
@@ -252,7 +253,12 @@ actual object PlatformStuff {
             name = dbFile.absolutePath
         )
             .setDriver(AndroidSQLiteDriver())
-            .enableMultiInstanceInvalidation()
+            // may fix Exception java.lang.IllegalStateException: Cannot perform this operation because there is no current transaction.
+            // Exception android.database.sqlite.SQLiteDatabaseLockedException: database is locked (code 5 SQLITE_BUSY)
+//            .setQueryCoroutineContext(Dispatchers.IO.limitedParallelism(1))
+            .setQueryCoroutineContext(Dispatchers.IO)
+//            MultiInstanceInvalidation runs in the main process, keeping all the static caches alive
+//            .enableMultiInstanceInvalidation()
             .setAutoCloseTimeout(7, TimeUnit.MINUTES)
     }
 
@@ -324,5 +330,5 @@ actual object PlatformStuff {
 
     actual fun monotonicTimeMs() = SystemClock.elapsedRealtime()
 
-    actual fun getSystemSocksProxy(): Pair<String, Int>? = null
+    actual fun getSystemSocksProxy(): Pair<String, Int>? = null // desktop only
 }

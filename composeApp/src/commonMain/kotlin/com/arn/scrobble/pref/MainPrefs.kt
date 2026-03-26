@@ -12,7 +12,6 @@ import com.arn.scrobble.api.UserAccountSerializable
 import com.arn.scrobble.api.UserCached
 import com.arn.scrobble.api.lastfm.CookieSerializable
 import com.arn.scrobble.api.lastfm.LastfmPeriod
-import com.arn.scrobble.api.lastfm.SearchType
 import com.arn.scrobble.charts.TimePeriod
 import com.arn.scrobble.charts.TimePeriodType
 import com.arn.scrobble.edits.RegexPreset
@@ -58,7 +57,6 @@ data class MainPrefs(
     val submitNowPlaying: Boolean = true,
     val fetchAlbum: Boolean = false,
     val searchInSource: Boolean = false,
-    val lastSearchType: SearchType = SearchType.GLOBAL,
     val firstDayOfWeek: Int = -1,
     private val demoMode: Boolean = false,
     val showScrobbleSources: Boolean = true,
@@ -84,10 +82,6 @@ data class MainPrefs(
     val collageSize: Int = 3,
     val collageCaptions: Boolean = true,
     val collageBorders: Boolean = true,
-    val lastFullIndexTime: Long? = null,
-    val lastDeltaIndexTime: Long? = null,
-    val lastFullIndexedScrobbleTime: Long? = null,
-    val lastDeltaIndexedScrobbleTime: Long? = null,
     val gridMode: GridMode = GridMode.GRID,
     val regexLearnt: Boolean = false,
     val desktopAppLearnt: Boolean = false,
@@ -128,6 +122,10 @@ data class MainPrefs(
     private val logToFileOnAndroidSince: Long = -1,
     val extractFirstArtistPackages: Set<String> = emptySet(),
     val discordRpc: DiscordRpcSettings = DiscordRpcSettings(),
+    val customProxyEnabled: Boolean = false,
+    val proxyHost: String = "127.0.0.1",
+    val proxyPort: Int = 1080,
+    val lovesFetchedForCache: Boolean = false,
 ) {
 
     @Serializable
@@ -203,12 +201,6 @@ data class MainPrefs(
 
     val demoModeP
         get() = demoMode && BuildKonfig.DEBUG
-
-    val lastMaxIndexedScrobbleTime
-        get() = lastDeltaIndexedScrobbleTime ?: lastFullIndexedScrobbleTime
-
-    val lastMaxIndexTime
-        get() = lastDeltaIndexTime ?: lastFullIndexTime
 
     val spotifyCountryP
         get() = spotifyCountry ?: LocaleUtils.getSystemCountryCode()
