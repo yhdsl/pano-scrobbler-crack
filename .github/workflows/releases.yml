@@ -5,21 +5,14 @@ on:
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest ]
-        include:
-          - os: ubuntu-latest
-            resources-dir: linux-x64
+    name: Build on ubuntu-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
       - name: Fix permissions
-        if: matrix.resources-dir != 'windows-x64'
         shell: bash
         run: |
           chmod +x ./gradlew
@@ -29,24 +22,43 @@ jobs:
         run: |
           echo "${{ secrets.LOCAL_PROPERTIES }}" > local.properties
 
-      - if: matrix.resources-dir == 'linux-x64'
-        name: Set up Android secrets
-        shell: bash
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d - > $GITHUB_WORKSPACE/android-keystore.jks
-
-      - if: matrix.resources-dir == 'linux-x64'
-        name: Build APK
+      - name: Build APK
         shell: bash
         run: |
           export JAVA_HOME=$JAVA_HOME_21_X64
           $ANDROID_HOME/cmdline-tools/**/bin/sdkmanager --update
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list_installed
-          ./gradlew androidApp:assembleReleaseGithub --no-daemon -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/android-keystore.jks -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+          ./gradlew androidApp:assembleReleaseGithub --no-daemon
 
-      - if: matrix.resources-dir == 'linux-x64'
-        name: Upload Android binary
+      - name: Set up Android secrets
+        shell: bash
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d - > $GITHUB_WORKSPACE/android-keystore.jks
+
+      - name: Zipalign APK
+        run: |
+          ZIPALIGN=$ANDROID_HOME/build-tools/36.1.0/zipalign
+          APK=./androidApp/build/outputs/apk/releaseGithub/pano-scrobbler-releaseGithub-unsigned.apk
+
+          $ZIPALIGN -v 4 "$APK" ./androidApp/build/outputs/apk/releaseGithub/aligned.apk
+
+      - name: Sign APK
+        run: |
+          APKSIGNER_JAR=$ANDROID_HOME/build-tools/36.1.0/lib/apksigner.jar
+
+          java -jar $APKSIGNER_JAR sign \
+            --ks $GITHUB_WORKSPACE/android-keystore.jks \
+            --ks-key-alias "${{ secrets.KEY_ALIAS }}" \
+            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.KEY_PASSWORD }} \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --out ./androidApp/build/outputs/apk/releaseGithub/pano-scrobbler-releaseGithub.apk \
+            ./androidApp/build/outputs/apk/releaseGithub/aligned.apk
+
+      - name: Upload Android binary
         uses: actions/upload-artifact@v7
         with:
           name: pano-scrobbler-android-universal
-          path: ./androidApp/build/outputs/apk/releaseGithub/*.apk
+          path: ./androidApp/build/outputs/apk/releaseGithub/pano-scrobbler-releaseGithub.apk
