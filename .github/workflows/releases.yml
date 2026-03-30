@@ -42,7 +42,7 @@ jobs:
           export JAVA_HOME=$JAVA_HOME_21_X64
           $ANDROID_HOME/cmdline-tools/**/bin/sdkmanager --update
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list_installed
-          ./gradlew androidApp:assembleReleaseGithub --no-daemon -Pandroid.injected.signing.store.file=android-keystore.jks -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+          ./gradlew androidApp:assembleReleaseGithub --no-daemon -Pandroid.injected.signing.store.file=androidApp/android-keystore.jks -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
       - if: matrix.resources-dir == 'linux-x64'
         name: Upload Android binary
