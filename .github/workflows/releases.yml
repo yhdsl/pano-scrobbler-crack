@@ -46,7 +46,7 @@ jobs:
 
       - if: matrix.resources-dir == 'linux-x64'
         name: Upload Android binary
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: pano-scrobbler-android-universal
           path: ./androidApp/build/outputs/apk/releaseGithub/pano-scrobbler-releaseGithub-unsigned.apk
