@@ -125,9 +125,9 @@ android {
                 keyAlias = localProperties["release.alias"]
                 keyPassword = localProperties["release.password"]
 
-                v1SigningEnabled = true
-                v2SigningEnabled = true
-                v3SigningEnabled = true
+                isV1SigningEnabled = true
+                isV2SigningEnabled = true
+                isV3SigningEnabled = true
             }
         }
 
@@ -143,9 +143,9 @@ android {
                 keyAlias = localProperties["releaseGithub.alias"]
                 keyPassword = localProperties["releaseGithub.password"]
 
-                v1SigningEnabled = true
-                v2SigningEnabled = true
-                v3SigningEnabled = true
+                isV1SigningEnabled = true
+                isV2SigningEnabled = true
+                isV3SigningEnabled = true
             }
         }
     }
