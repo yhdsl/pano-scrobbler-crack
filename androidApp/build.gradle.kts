@@ -124,6 +124,10 @@ android {
                 storePassword = localProperties["release.storePassword"]
                 keyAlias = localProperties["release.alias"]
                 keyPassword = localProperties["release.password"]
+
+                v1SigningEnabled = true
+                v2SigningEnabled = true
+                v3SigningEnabled = true
             }
         }
 
@@ -138,6 +142,10 @@ android {
                 storePassword = localProperties["releaseGithub.storePassword"]
                 keyAlias = localProperties["releaseGithub.alias"]
                 keyPassword = localProperties["releaseGithub.password"]
+
+                v1SigningEnabled = true
+                v2SigningEnabled = true
+                v3SigningEnabled = true
             }
         }
     }
