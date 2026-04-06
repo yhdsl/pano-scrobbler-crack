@@ -19,7 +19,6 @@ import com.arn.scrobble.utils.PlatformStuff
 import com.arn.scrobble.utils.Stuff
 import com.arn.scrobble.utils.Stuff.stateInWithCache
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.ProxyBuilder
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpCallValidator
 import io.ktor.client.plugins.HttpTimeout
@@ -45,21 +44,36 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.decodeFromStream
 import java.io.File
+import java.net.Authenticator
+import java.net.InetSocketAddress
+import java.net.PasswordAuthentication
+import java.net.Proxy
 import kotlin.coroutines.cancellation.CancellationException
 
 
 object Requesters {
-    val proxyHostPort = PlatformStuff.mainPrefs.data.stateInWithCache(Stuff.appScope) {
-        if (it.customProxyEnabled && it.proxyHost.isNotBlank() && it.proxyPort in 1..65535)
-            it.proxyHost to it.proxyPort
-        else
-            null
+    val proxy = PlatformStuff.mainPrefs.data.stateInWithCache(Stuff.appScope) { it.proxy }
+
+    private val proxyAuthenticator = object : Authenticator() {
+        override fun getPasswordAuthentication(): PasswordAuthentication? {
+            val p = proxy.value.takeIf { it.enabled && it.hasAuth } ?: return null
+
+            if (requestingProtocol.equals("SOCKS5", ignoreCase = true) &&
+                requestingPort == p.port &&
+                requestingHost.equals(p.host, ignoreCase = true)
+            ) {
+                return PasswordAuthentication(p.user, p.pass.toCharArray())
+            }
+            return null
+        }
     }
+
+    private var proxyAuthenticatorSet = false
 
     init {
         // invalidate clients when proxy settings change
         Stuff.appScope.launch {
-            proxyHostPort.drop(1).collect {
+            proxy.drop(1).collect {
                 invalidateAll()
             }
         }
@@ -74,15 +88,29 @@ object Requesters {
     private val _baseKtorClient = invalidatableLazy {
         HttpClient(OkHttp) {
 
+            val proxySettings = proxy.value.takeIf { it.enabled }
+            val proxyJvm: Proxy?
+
+            if (proxySettings != null) {
+                proxyJvm = Proxy(
+                    Proxy.Type.SOCKS, InetSocketAddress.createUnresolved(
+                        proxySettings.host,
+                        proxySettings.port
+                    )
+                )
+
+                if (!proxyAuthenticatorSet) {
+                    proxyAuthenticatorSet = true
+                    Authenticator.setDefault(proxyAuthenticator)
+                }
+            } else {
+                // fix to tunnel dns through socks5 proxy if set at system level
+                proxyJvm = PlatformStuff.getSystemSocksProxy()
+            }
+
             engine {
                 dispatcher = Dispatchers.IO
-
-                val prox = proxyHostPort.value ?: PlatformStuff.getSystemSocksProxy()
-                // fix to tunnel dns through socks5 proxy if set at system level
-                prox?.let { (host, port) ->
-                    Logger.i { "SOCKS proxy detected at $host:$port, applying fix" }
-                    proxy = ProxyBuilder.socks(host, port)
-                }
+                proxy = proxyJvm
             }
 
             install(HttpTimeout) {

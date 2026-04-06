@@ -1,10 +1,10 @@
 package com.arn.scrobble.utils
 
 import android.app.ActivityManager
+import android.app.Application.getProcessName
 import android.app.ApplicationExitInfo
 import android.app.PendingIntent
 import android.content.Context
-import android.content.pm.PackageManager
 import android.media.MediaMetadata
 import android.os.Build
 import android.os.Bundle
@@ -16,16 +16,29 @@ import androidx.annotation.RequiresApi
 import androidx.annotation.StringRes
 import androidx.datastore.core.DataStoreFactory
 import co.touchlab.kermit.Logger
+import com.arn.scrobble.BuildKonfig
 import com.arn.scrobble.pref.WidgetPrefs
 import com.arn.scrobble.pref.WidgetPrefsSerializer
 import com.arn.scrobble.utils.Stuff.SCROBBLER_PROCESS_NAME
 import java.io.File
-import kotlin.properties.Delegates
 
 object AndroidStuff {
     lateinit var applicationContext: Context
 
-    var isMainProcess by Delegates.notNull<Boolean>()
+    val isMainProcess by lazy {
+        val procName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            // For API 28+ we can use Application.getProcessName()
+            getProcessName()
+        } else {
+            Class
+                .forName("android.app.ActivityThread")
+                .getDeclaredMethod("currentProcessName")
+                .apply { isAccessible = true }
+                .invoke(null) as String
+        }
+
+        procName == BuildKonfig.APP_ID
+    }
 
     const val updateCurrentOrImmutable =
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -146,14 +159,6 @@ object AndroidStuff {
         // probably a samsung bug
     }
 
-    fun isPackageInstalled(packageName: String): Boolean {
-        return try {
-            applicationContext.packageManager.getPackageInfo(packageName, 0) != null
-        } catch (e: PackageManager.NameNotFoundException) {
-            false
-        }
-    }
-
     fun MediaMetadata.dump() {
         val data = keySet().joinToString(separator = "\n") {
             var value: String? = getString(it)
@@ -203,4 +208,5 @@ object AndroidStuff {
             }
         )
     }
+
 }

@@ -271,6 +271,7 @@ object PanoNavGraph {
             onSetTitleRes(route, Res.string.settings)
             PrefsScreen(
                 onNavigate = navigate,
+                mainViewModel = mainViewModel,
                 modifier = modifier()
             )
         }
@@ -426,15 +427,6 @@ object PanoNavGraph {
             )
         }
 
-//    entry<PanoRoute.LoginMaloja> {
-//        onSetTitleRes(it.id, Res.string.maloja)
-//
-//        MalojaLoginScreen(
-//            onDone = goBack,
-//            modifier = modifier().addColumnPadding()
-//        )
-//    }
-
         entry<PanoRoute.LoginPleroma> { route ->
             onSetTitleRes(route, Res.string.pleroma)
 
@@ -503,9 +495,8 @@ object PanoNavGraph {
         entry<PanoRoute.Onboarding> {
             OnboardingScreen(
                 onNavigate = navigate,
-                onDone = {
-                    onSetOnboardingFinished()
-                },
+                onDone = onSetOnboardingFinished,
+                mainViewModel = mainViewModel,
                 modifier = modifier().addColumnPadding()
             )
         }
@@ -581,6 +572,7 @@ object PanoNavGraph {
 
             HelpScreen(
                 searchTerm = route.searchTerm,
+                scrobblerStateFlow = mainViewModel.scrobblerStateFlow,
                 modifier = modifier().padding(panoContentPadding())
             )
         }

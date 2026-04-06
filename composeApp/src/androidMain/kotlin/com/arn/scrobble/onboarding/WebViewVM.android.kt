@@ -1,11 +1,10 @@
 package com.arn.scrobble.onboarding
 
-import android.os.Build
 import android.webkit.CookieManager
-import android.webkit.WebView
+import androidx.webkit.WebViewCompat
 import co.touchlab.kermit.Logger
 import com.arn.scrobble.api.Requesters
-import com.arn.scrobble.utils.PlatformStuff
+import com.arn.scrobble.utils.AndroidStuff
 
 actual fun WebViewVM.platformClear() {
     try {
@@ -16,16 +15,18 @@ actual fun WebViewVM.platformClear() {
 }
 
 actual fun WebViewVM.platformInit() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-        WebView.getCurrentWebViewPackage() == null
-    ) {
+    if (WebViewCompat.getCurrentWebViewPackage(AndroidStuff.applicationContext) == null) {
         Logger.e { "WebView unavailable" }
         loginState.value = WebViewLoginState.Unavailable
     } else {
-        val proxyHostPort = Requesters.proxyHostPort.value
-        if (proxyHostPort == null)
+        val proxy = Requesters.proxy.value
+        if (proxy.enabled && !proxy.hasAuth)
+            WebViewProxyOverride.setSocksProxy(proxy.host, proxy.port)
+        else if (proxy.enabled && proxy.hasAuth) {
+            val tunnelPort = startProxyRelay(proxy)
+
+            WebViewProxyOverride.setSocksProxy("127.0.0.1", tunnelPort)
+        } else
             WebViewProxyOverride.clearProxy()
-        else
-            WebViewProxyOverride.setSocksProxy(proxyHostPort.first, proxyHostPort.second)
     }
 }

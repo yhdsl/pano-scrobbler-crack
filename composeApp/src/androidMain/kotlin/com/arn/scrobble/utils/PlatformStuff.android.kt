@@ -1,6 +1,7 @@
 package com.arn.scrobble.utils
 
 import android.app.ActivityManager
+import android.app.ApplicationExitInfo
 import android.app.SearchManager
 import android.app.UiModeManager
 import android.content.ActivityNotFoundException
@@ -16,6 +17,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.provider.MediaStore
 import android.provider.Settings
+import android.service.notification.NotificationListenerService
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.core.net.toUri
@@ -31,8 +33,8 @@ import com.arn.scrobble.api.lastfm.Artist
 import com.arn.scrobble.api.lastfm.MusicEntry
 import com.arn.scrobble.api.lastfm.Track
 import com.arn.scrobble.db.PanoDb
+import com.arn.scrobble.main.ScrobblerState
 import com.arn.scrobble.media.NLService
-import com.arn.scrobble.onboarding.WebViewProxyOverride
 import com.arn.scrobble.pref.MainPrefs
 import com.arn.scrobble.ui.PanoSnackbarVisuals
 import com.arn.scrobble.utils.AndroidStuff.applicationContext
@@ -53,6 +55,7 @@ import pano_scrobbler.composeapp.generated.resources.tv_url_notice
 import java.io.File
 import java.io.OutputStream
 import java.net.Inet4Address
+import java.net.Proxy
 import java.util.concurrent.TimeUnit
 
 actual object PlatformStuff {
@@ -85,23 +88,6 @@ actual object PlatformStuff {
 
     actual val appIdPlaceholder = "<package_name>"
 
-    actual fun isNotificationListenerEnabled(): Boolean {
-        // adapted from NotificationManagerCompat.java
-
-        val enabledNotificationListeners = try {
-            Settings.Secure.getString(
-                applicationContext.contentResolver,
-                "enabled_notification_listeners"
-            )
-        } catch (e: SecurityException) {
-            return false
-        }
-
-        val nlsComponentStr = "${applicationContext.packageName}/${NLService::class.qualifiedName}"
-        // check for the exact component name instead of just package name
-        return enabledNotificationListeners?.split(":")?.any { it == nlsComponentStr } == true
-    }
-
     actual val isTv by lazy {
         val uiModeManager =
             applicationContext.getSystemService(UiModeManager::class.java)!!
@@ -112,24 +98,101 @@ actual object PlatformStuff {
 
     actual const val isDesktop = false
 
-    actual fun isScrobblerRunning(): Boolean {
+    actual suspend fun checkScrobblerState(requestRebind: Boolean): ScrobblerState {
+        // check NLS enabled
+        // adapted from NotificationManagerCompat.java
+
+        val enabledNotificationListeners = try {
+            Settings.Secure.getString(
+                applicationContext.contentResolver,
+                "enabled_notification_listeners"
+            )
+        } catch (e: SecurityException) {
+            Logger.w(e) { "checkScrobblerState: no permission to read enabled_notification_listeners" }
+            null
+        }
+
+        val nlsComponentStr = "${applicationContext.packageName}/${NLService::class.qualifiedName}"
+        // check for the exact component name instead of just package name
+        if (enabledNotificationListeners == null || enabledNotificationListeners.split(":")
+                .none { it == nlsComponentStr }
+        )
+            return ScrobblerState.NLSDisabled
+
+
+        // check pref
+        if (!mainPrefs.data.map { it.scrobblerEnabled }.first())
+            return ScrobblerState.Disabled
+
+        // check NLS running
+
         val serviceComponent = ComponentName(applicationContext, NLService::class.java)
         val manager =
             applicationContext.getSystemService(ActivityManager::class.java)!!
-        val nlsService = try {
-            manager.getRunningServices(Integer.MAX_VALUE)?.find { it.service == serviceComponent }
+        val nlsRunning = try {
+            manager.getRunningServices(Integer.MAX_VALUE)
+                ?.find { it.service == serviceComponent }
+                ?.let { it.clientCount > 0 } == true
         } catch (e: SecurityException) {
             Logger.e(e) { "isScrobblerRunning: no permission to get running services" }
-            return true // just assume true to suppress the error message, if we don't have permission
+            true // just assume true to suppress the error message, if we don't have permission
         }
 
-        nlsService ?: return false
+        if (!nlsRunning) {
+            // check kill reason
+            val killedReason = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                AndroidStuff.getScrobblerExitReasons().firstOrNull()
+                    ?.let { exitInfo ->
+                        val reasonStr = exitInfo.toString()
+                        val regex =
+                            """reason=\d+ \(([^)]+)\).*?subreason=\d+ \(([^)]+)\)""".toRegex()
+                        val match = regex.find(reasonStr)
 
-        Logger.i(
-            "${NLService::class.simpleName} - clientCount: ${nlsService.clientCount} process:${nlsService.process}"
-        )
+                        val isProbablySystemKill = exitInfo.reason in arrayOf(
+                            ApplicationExitInfo.REASON_OTHER,
+                            ApplicationExitInfo.REASON_LOW_MEMORY,
+                            ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE,
+                            ApplicationExitInfo.REASON_UNKNOWN,
+                            ApplicationExitInfo.REASON_SIGNALED,
+                            ApplicationExitInfo.REASON_INITIALIZATION_FAILURE,
+                            ApplicationExitInfo.REASON_PERMISSION_CHANGE,
+                            ApplicationExitInfo.REASON_DEPENDENCY_DIED,
+                            ApplicationExitInfo.REASON_USER_REQUESTED, // xiaomi misreports it
+                        )
 
-        return nlsService.clientCount > 0
+                        ScrobblerState.KilledReason(
+                            reasonCode = exitInfo.reason,
+                            reason = match?.groupValues[1]?.takeIf { it != "UNKNOWN" } ?: "",
+                            subReason = match?.groupValues[2]?.takeIf { it != "UNKNOWN" }
+                                ?: "",
+                            desc = exitInfo.description ?: "",
+                            rssMb = (exitInfo.rss / 1024).toInt(),
+                            isProbablySystemKill = isProbablySystemKill
+                        )
+                    }
+            else
+                null
+
+            if (requestRebind) {
+                Stuff.appScope.launch(Dispatchers.IO) {
+                    try {
+                        NotificationListenerService.requestRebind(
+                            ComponentName(
+                                applicationContext,
+                                NLService::class.java
+                            )
+                        )
+                    } catch (e: Exception) {
+                        Logger.w(e) { "requestRebind failed" }
+                    }
+                }
+            }
+
+            return ScrobblerState.Killed(killedReason)
+        }
+
+        // running
+        return ScrobblerState.Running
     }
 
 
@@ -255,8 +318,8 @@ actual object PlatformStuff {
             .setDriver(AndroidSQLiteDriver())
             // may fix Exception java.lang.IllegalStateException: Cannot perform this operation because there is no current transaction.
             // Exception android.database.sqlite.SQLiteDatabaseLockedException: database is locked (code 5 SQLITE_BUSY)
-//            .setQueryCoroutineContext(Dispatchers.IO.limitedParallelism(1))
-            .setQueryCoroutineContext(Dispatchers.IO)
+            .setQueryCoroutineContext(Dispatchers.IO.limitedParallelism(1))
+//            .setQueryCoroutineContext(Dispatchers.IO)
 //            MultiInstanceInvalidation runs in the main process, keeping all the static caches alive
 //            .enableMultiInstanceInvalidation()
             .setAutoCloseTimeout(7, TimeUnit.MINUTES)
@@ -330,5 +393,5 @@ actual object PlatformStuff {
 
     actual fun monotonicTimeMs() = SystemClock.elapsedRealtime()
 
-    actual fun getSystemSocksProxy(): Pair<String, Int>? = null // desktop only
+    actual fun getSystemSocksProxy(): Proxy? = null // desktop only
 }
