@@ -24,7 +24,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.arn.scrobble.BuildKonfig
 import com.arn.scrobble.main.ScrobblerState
-import com.arn.scrobble.media.PersistentNotificationService
 import com.arn.scrobble.navigation.PanoRoute
 import com.arn.scrobble.utils.AndroidStuff
 import com.arn.scrobble.utils.AndroidStuff.toast
@@ -39,12 +38,13 @@ import pano_scrobbler.composeapp.generated.resources.appwidget_show
 import pano_scrobbler.composeapp.generated.resources.check_nls
 import pano_scrobbler.composeapp.generated.resources.fix_it_action
 import pano_scrobbler.composeapp.generated.resources.fix_it_battery_title
-import pano_scrobbler.composeapp.generated.resources.fix_it_desc
 import pano_scrobbler.composeapp.generated.resources.fix_it_energy_title
 import pano_scrobbler.composeapp.generated.resources.fix_it_startup_title
 import pano_scrobbler.composeapp.generated.resources.fix_it_title
 import pano_scrobbler.composeapp.generated.resources.kill_reason
 import pano_scrobbler.composeapp.generated.resources.not_found
+import pano_scrobbler.composeapp.generated.resources.persistent_noti_desc
+import pano_scrobbler.composeapp.generated.resources.persistent_noti_oems
 import pano_scrobbler.composeapp.generated.resources.show_persistent_noti
 import pano_scrobbler.composeapp.generated.resources.special_app_access
 
@@ -58,7 +58,7 @@ fun FixItDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val showDkmaLayout = remember { !PlatformStuff.isTv }
-    val canShowPersistentNoti by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue {
+    val canEnablePersistentNoti by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue {
         !it.notiPersistent && AndroidStuff.canShowPersistentNotiIfEnabled
     }
 
@@ -83,10 +83,38 @@ fun FixItDialog(
             style = MaterialTheme.typography.titleLarge
         )
         Text(
-            text = stringResource(Res.string.fix_it_desc),
+            text = stringResource(
+                Res.string.persistent_noti_desc,
+                stringResource(Res.string.persistent_noti_oems)
+            ),
         )
 
-        if (!showDkmaLayout && batteryIntent == null && !canShowPersistentNoti) {
+        if (canEnablePersistentNoti) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp)
+            ) {
+                Text(
+                    text = stringResource(Res.string.show_persistent_noti),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            PlatformStuff.mainPrefs.updateData { it.copy(notiPersistent = true) }
+                        }
+                    },
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Text(text = stringResource(Res.string.appwidget_show))
+                }
+            }
+        }
+
+        if (!showDkmaLayout && batteryIntent == null && !canEnablePersistentNoti) {
             Text(
                 text = stringResource(Res.string.not_found),
                 style = MaterialTheme.typography.titleLarge
@@ -145,33 +173,6 @@ fun FixItDialog(
                     modifier = Modifier.padding(start = 8.dp)
                 ) {
                     Text(text = stringResource(Res.string.fix_it_action))
-                }
-            }
-        }
-
-        if (canShowPersistentNoti) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp)
-            ) {
-                Text(
-                    text = stringResource(Res.string.show_persistent_noti),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedButton(
-                    onClick = {
-                        scope.launch {
-                            PlatformStuff.mainPrefs.updateData { it.copy(notiPersistent = true) }
-                        }
-
-                        PersistentNotificationService.start(context)
-                    },
-                    modifier = Modifier.padding(start = 8.dp)
-                ) {
-                    Text(text = stringResource(Res.string.appwidget_show))
                 }
             }
         }

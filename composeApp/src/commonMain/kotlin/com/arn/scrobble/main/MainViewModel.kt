@@ -1,5 +1,6 @@
 package com.arn.scrobble.main
 
+import androidx.annotation.Keep
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -116,7 +117,9 @@ class MainViewModel : ViewModel() {
 
     fun updateScrobblerServiceState(requestRebind: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            delay(100)
+            if (requestRebind)
+                delay(2000)
+
             val state = PlatformStuff.checkScrobblerState(requestRebind)
             _scrobblerStateFlow.value = state
 
@@ -125,8 +128,9 @@ class MainViewModel : ViewModel() {
             ) {
                 killedReasonReported = true
                 val message = state.reason.formatted()
-                val rss = " ${state.reason.rssMb} MB"
-                Logger.e(AppExitException(message + rss)) { message }
+                val pss = " ${state.reason.pssMb} MB"
+                val notiState = if (!state.reason.fgNoti) " noFgNoti" else ""
+                Logger.e(AppExitException(message + pss + notiState)) { message }
             }
         }
     }
@@ -171,9 +175,11 @@ class MainViewModel : ViewModel() {
             .filter { it == id }
             .map { }
 
-    private class AppExitException(override val message: String) : RuntimeException()
 
     companion object {
         private var killedReasonReported = false
     }
 }
+
+@Keep
+private class AppExitException(override val message: String) : RuntimeException()

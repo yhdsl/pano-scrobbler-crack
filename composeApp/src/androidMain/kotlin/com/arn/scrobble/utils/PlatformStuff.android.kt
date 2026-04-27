@@ -17,7 +17,6 @@ import android.os.Build
 import android.os.SystemClock
 import android.provider.MediaStore
 import android.provider.Settings
-import android.service.notification.NotificationListenerService
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.core.net.toUri
@@ -101,12 +100,10 @@ actual object PlatformStuff {
     actual suspend fun checkScrobblerState(requestRebind: Boolean): ScrobblerState {
         // check NLS enabled
         // adapted from NotificationManagerCompat.java
+        val cr = applicationContext.contentResolver
 
         val enabledNotificationListeners = try {
-            Settings.Secure.getString(
-                applicationContext.contentResolver,
-                "enabled_notification_listeners"
-            )
+            Settings.Secure.getString(cr, "enabled_notification_listeners")
         } catch (e: SecurityException) {
             Logger.w(e) { "checkScrobblerState: no permission to read enabled_notification_listeners" }
             null
@@ -139,6 +136,8 @@ actual object PlatformStuff {
         }
 
         if (!nlsRunning) {
+            val fgNoti = mainPrefs.data.map { it.notiPersistent }.first()
+
             // check kill reason
             val killedReason = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
                 AndroidStuff.getScrobblerExitReasons().firstOrNull()
@@ -166,26 +165,16 @@ actual object PlatformStuff {
                             subReason = match?.groupValues[2]?.takeIf { it != "UNKNOWN" }
                                 ?: "",
                             desc = exitInfo.description ?: "",
-                            rssMb = (exitInfo.rss / 1024).toInt(),
-                            isProbablySystemKill = isProbablySystemKill
+                            pssMb = (exitInfo.pss / 1024).toInt(),
+                            isProbablySystemKill = isProbablySystemKill,
+                            fgNoti = fgNoti,
                         )
                     }
             else
                 null
 
             if (requestRebind) {
-                Stuff.appScope.launch(Dispatchers.IO) {
-                    try {
-                        NotificationListenerService.requestRebind(
-                            ComponentName(
-                                applicationContext,
-                                NLService::class.java
-                            )
-                        )
-                    } catch (e: Exception) {
-                        Logger.w(e) { "requestRebind failed" }
-                    }
-                }
+                AndroidStuff.requestRebindFromContentProvider(cr)
             }
 
             return ScrobblerState.Killed(killedReason)
@@ -319,6 +308,8 @@ actual object PlatformStuff {
             // may fix Exception java.lang.IllegalStateException: Cannot perform this operation because there is no current transaction.
             // Exception android.database.sqlite.SQLiteDatabaseLockedException: database is locked (code 5 SQLITE_BUSY)
             .setQueryCoroutineContext(Dispatchers.IO.limitedParallelism(1))
+            // may fix multiprocess android.database.sqlite.SQLiteDatabaseLockedException: database is locked (code 5 SQLITE_BUSY[5])
+            .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
 //            .setQueryCoroutineContext(Dispatchers.IO)
 //            MultiInstanceInvalidation runs in the main process, keeping all the static caches alive
 //            .enableMultiInstanceInvalidation()

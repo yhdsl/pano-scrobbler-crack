@@ -134,9 +134,13 @@ object DesktopStuff {
         if (System.getProperty(prop) == null) {
             System.setProperty(prop, execDirPath)
 
-            prop = "sun.java2d.dpiaware"
-            if (System.getProperty(prop) == null)
-                System.setProperty(prop, "true")
+            if (os == Os.Windows) {
+                // cert for graalvm release builds only
+                System.setProperty("javax.net.ssl.trustStore", "NONE")
+                System.setProperty("javax.net.ssl.trustStoreType", "Windows-ROOT")
+
+                System.setProperty("sun.java2d.dpiaware", "true")
+            }
         }
 
         // proxies

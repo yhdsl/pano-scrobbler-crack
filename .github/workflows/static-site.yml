@@ -34,7 +34,7 @@ jobs:
 
       - name: Restore correct mtime
         run: |
-          sudo apt install git-restore-mtime
+          sudo apt install git-restore-mtime 
           git restore-mtime
 
 #      - name: Install F-Droid server software
@@ -96,4 +96,4 @@ jobs:
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
