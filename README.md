@@ -1,48 +1,64 @@
-## <img src="composeApp/src/desktopMain/composeResources/drawable/ic_launcher_with_bg.svg" alt="app icon" width="32"/> Pano Scrobbler
+# <img src="composeApp/src/desktopMain/composeResources/drawable/ic_launcher_with_bg.svg" alt="app icon" width="32"/> Pano Scrobbler
 
 [\[repository\]](https://github.com/kawaiiDango/pano-scrobbler)
 
-<img src="desktop-screenshots/1-scrobbles-desktop.jpg" alt="scrobbles screen" width="250"/> <img src="desktop-screenshots/2-charts-desktop.jpg" alt="charts screen" width="250"/>
+<img src="desktop-screenshots/1-scrobbles-desktop.jpg" alt="scrobbles screen on desktop" width="250"/> <img src="desktop-screenshots/2-charts-desktop.jpg" alt="charts screen on desktop" width="250"/>
 
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3-friends-mobile.jpg" alt="friends screen" width="150"/> <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4-details-mobile.jpg" alt="details screen" width="150"/>
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3-friends-mobile.jpg" alt="friends screen on mobile" width="150"/> <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4-details-mobile.jpg" alt="details screen on mobile" width="150"/>
 
-### Downloads
+## Downloads
 
-**Windows:**
+### Windows:
 
-[![github-x64](img/github-x64.svg)](https://github.com/kawaiiDango/pano-scrobbler/releases/latest/download/pano-scrobbler-windows-x64.exe)
-[![winget](img/winget.svg)](https://winstall.app/apps/kawaiiDango.pano-scrobbler)
+[![Download installer for x64 from GitHub](img/github-exe-x64.svg)](https://github.com/kawaiiDango/pano-scrobbler/releases/latest/download/pano-scrobbler-windows-x64.exe)
+[![Install via winget](img/winget.svg)](https://winstall.app/apps/kawaiiDango.pano-scrobbler)
 
 ```
 winget install -e --id kawaiiDango.pano-scrobbler
 ```
 
-**Linux:**
+Windows releases are unsigned, so a SmartScreen warning about "Unknown Publisher" is normal.
 
-[![github-x64](img/github-x64.svg)](https://github.com/kawaiiDango/pano-scrobbler/releases/latest/download/pano-scrobbler-linux-x64.AppImage)
-[![github-arm64](img/github-arm64.svg)](https://github.com/kawaiiDango/pano-scrobbler/releases/latest/download/pano-scrobbler-liinux-arm64.AppImage)
-[![aur](img/aur.svg)](https://aur.archlinux.org/packages/pano-scrobbler-bin)
+### Linux:
+
+[![Download AppImage for x64 from GitHub](img/github-appimage-x64.svg)](https://github.com/kawaiiDango/pano-scrobbler/releases/latest/download/pano-scrobbler-linux-x64.AppImage)
+[![Download AppImage for arm64 from GitHub](img/github-appimage-arm64.svg)](https://github.com/kawaiiDango/pano-scrobbler/releases/latest/download/pano-scrobbler-linux-arm64.AppImage)
+[![Install from AUR](img/aur.svg)](https://aur.archlinux.org/packages/pano-scrobbler-bin) [![Install via Nix flake](img/nix-flake.svg)](https://github.com/kawaiiDango/pano-scrobbler-flake)
+
+[![Download tar.gz for x64 from GitHub](img/github-targz-x64.svg)](https://github.com/kawaiiDango/pano-scrobbler/releases/latest/download/pano-scrobbler-linux-x64.tar.gz)
+[![Download tar.gz for arm64 from GitHub](img/github-targz-arm64.svg)](https://github.com/kawaiiDango/pano-scrobbler/releases/latest/download/pano-scrobbler-linux-arm64.tar.gz)
+
+The AppImage runs anywhere, requires no installation, has automatic updates and can optionally add
+itself to the application launcher for convenience. Just make it executable before running it:
+
+```
+chmod +x pano-scrobbler-linux-*.AppImage
+```
+
+#### Arch:
 
 ```
 yay -S pano-scrobbler-bin
 ```
 
+#### Nix:
+
+```
+nix profile install github:kawaiiDango/pano-scrobbler-flake
+```
+
 The desktop versions do not use any closed source libraries.
 
-**Android (phones, tablets, TVs and Chromebooks):**
+### Android (phones, tablets, TVs and Chromebooks):
 
-[![github](img/github.svg)](https://github.com/kawaiiDango/pano-scrobbler/releases)
-[![fdroid](img/fdroid.svg)](https://kawaiidango.github.io/pano-scrobbler/fdroid/repo?fingerprint=9954ECAB27F9FCE8290AC75A33F3DFE9FE5F6F5B8E6F33AD7F98307AC4D487BA)
-[![obtainium](img/obtainium.svg)](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/kawaiiDango/pano-scrobbler)
-[![IzzyOnDroid](img/izzyondroid.svg)](https://apt.izzysoft.de/fdroid/index/apk/com.arn.scrobble)
-[![play-store](img/play-store.svg)](https://play.google.com/store/apps/details?id=com.arn.scrobble)
+[![Download APK from GitHub](img/github-apk.svg)](https://github.com/kawaiiDango/pano-scrobbler/releases)
+[![Get it on F-Droid](img/fdroid.svg)](https://kawaiidango.github.io/pano-scrobbler/fdroid/repo?fingerprint=9954ECAB27F9FCE8290AC75A33F3DFE9FE5F6F5B8E6F33AD7F98307AC4D487BA)
+[![Get it on Obtainium](img/obtainium.svg)](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/kawaiiDango/pano-scrobbler)
+[![Get it on IzzyOnDroid](img/izzyondroid.svg)](https://apt.izzysoft.de/fdroid/index/apk/com.arn.scrobble)
+[![Get it on Google Play](img/play-store.svg)](https://play.google.com/store/apps/details?id=com.arn.scrobble)
 
 Since v4.0, the non-Play builds do not use Firebase Crashlytics, Google Play Services, or any closed
 source libraries.
-
-The non-Play variant can optionally display a persistent notification on Android 14+.
-This may or may not help prevent the system from killing the app in the background on devices from
-certain manufacturers.
 
 Installing the non-Play version from the F-Droid compatible repo, IzzyOnDroid or Obtainium will get
 you automatic updates.
@@ -53,15 +69,15 @@ you automatic updates.
 9E:68:AB:6B:D6:11:CE:79:DD:5D:53:E3:5A:15:CF:93:CF:73:9A:4E:94:C4:9A:B1:BF:10:DD:12:65:F0:2E:6C
 ```
 
-### Translate
+## Translate
 
-[![translate](img/crowdin.svg)](https://crowdin.com/project/pscrobbler)
+[![Translate on Crowdin](img/crowdin.svg)](https://crowdin.com/project/pscrobbler)
 
 ## [FAQ](faq.md) • [Privacy](privacy-policy.md) • [Compiling](instructions.md)
 
-### Features:
+## Features:
 
-#### For all platforms (Windows, Linux, Android, Android TV):
+### For all platforms (Windows, Linux, Android, Android TV):
 
 - No ads ever
 - Scrobbles to Lastfm, Librefm, ListenBrainz, Pleroma and other compatible services
@@ -72,15 +88,15 @@ you automatic updates.
 - Block artists, songs, etc., and automatically skip or mute when they play
 - Check what your followed users are listening to and view their stats
 - Import and export settings, edits, and blocklists
-- View charts with change indicators for specific time periods,
+- View charts with change indicators for specific time periods
 - View scrobble count graphs and tag clouds
 - Get a random song, album, or artist from your listening history
-- Search Lastfm for a songs, artists, or albums
+- Search Lastfm for songs, artists, or albums
 - Themes
 - Remember and see apps you scrobbled from and play directly in them
-- Proxy support
+- Supports network proxies
 
-#### For desktop and Android (except TV):
+### For desktop and Android (except TV):
 
 - Scrobble to a CSV or JSONL file locally
 - Interactive notification - view song info, edit, love, cancel, or block songs directly from the
@@ -90,9 +106,9 @@ you automatic updates.
 - Edit or delete existing scrobbles. Remembers edits
 - Control Pano Scrobbler from automation apps on Android or command-line on desktop
 
-#### Android only (except TV):
+### Android only (except TV):
 
-- Scrobble from music recognition apps: Shazam, Ambient Music Mod and Audile
+- Scrobble from apps that identify music playing around you: Shazam, Ambient Music Mod and Audile
 - Scrobbling the new Pixel Now Playing app (since the March 2026 Pixel feature drop) is possible
   only with root and KieronQuinn's Xposed module
   [Public Compute Services](https://github.com/KieronQuinn/PublicComputeServices)
@@ -100,15 +116,16 @@ you automatic updates.
 - Charts as a customizable home-screen widget
 - Get your top scrobbles digests as a notification at the end of every week, month and year
 
-#### Desktop only:
+### Desktop only:
 
 - Customizable Discord Rich Presence
 
-### Credits
+## Credits
 
 - YouTube title parser from [Web Scrobbler](https://github.com/web-scrobbler/web-scrobbler)
   and [Metadata Filter](https://github.com/web-scrobbler/metadata-filter)
-- Icons from [pictogrammers.com](https://pictogrammers.com) and [material.io](https://material.io)
+- Icons from [pictogrammers.com](https://pictogrammers.com)
+  and [Material Symbols](https://fonts.google.com/icons)
 - Genres filter from [everynoise.com](https://everynoise.com)
 - Tidal SteelSeries Integration from [TidalRPC](https://github.com/BitesizedLion/TidalRPC)
 - Artists list from [MusicBrainz](https://musicbrainz.org)
@@ -117,11 +134,11 @@ Thanks to the
 amazing [translators](composeApp/src/commonMain/composeResources/files/crowdin_members.txt) and
 everyone who reported bugs and helped me with this project.
 
-### Disclaimer
+## Disclaimer
 
 This project is not affiliated with Last.fm, Libre.fm, ListenBrainz or any other scrobbling service.
 
-### License
+## License
 
 SPDX-License-Identifier: GPL-3.0-or-later
 
