@@ -28,20 +28,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-
-      #      - name: Create basic directory structure
-      #        run: mkdir -p fdroid/repo
-
-      - name: Restore correct mtime
-        run: |
-          sudo apt install git-restore-mtime 
-          git restore-mtime
-
-      #      - name: Install F-Droid server software
-      #        run: |
-      #         sudo add-apt-repository ppa:fdroid/fdroidserver
-      #         sudo apt-get update
-      #         sudo apt-get install fdroidserver
+        with:
+          fetch-depth: 0
 
       - name: Install F-Droid server software
         run: |
@@ -100,6 +88,10 @@ jobs:
         run: |
           cp faq.md static-site/faq.md
           cp privacy-policy.md static-site/privacy-policy.md
+
+      - name: Patch JSON-LD in index.html
+        run: |
+          sed -i 's/}<\/script>/,"operatingSystem":"Windows, Linux, Android","applicationCategory":"MultimediaApplication","offers":{"@type":"Offer","price":0}}<\/script>/' static-site/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
