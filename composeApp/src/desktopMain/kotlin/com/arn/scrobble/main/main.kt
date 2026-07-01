@@ -77,6 +77,7 @@ import org.jetbrains.compose.resources.InternalResourceApi
 import org.jetbrains.compose.resources.LanguageQualifier
 import org.jetbrains.compose.resources.RegionQualifier
 import org.jetbrains.compose.resources.ResourceEnvironment
+import org.jetbrains.compose.resources.ScriptQualifier
 import org.jetbrains.compose.resources.ThemeQualifier
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
@@ -104,6 +105,7 @@ import java.awt.event.MouseListener
 import java.lang.reflect.Constructor
 import java.util.Locale
 import kotlin.system.exitProcess
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -113,6 +115,7 @@ private fun initHeadlessResourceEnvironment() {
     val constructor: Constructor<ResourceEnvironment> = ResourceEnvironment::class.java
         .getDeclaredConstructor(
             LanguageQualifier::class.java,
+            ScriptQualifier::class.java,
             RegionQualifier::class.java,
             ThemeQualifier::class.java,
             DensityQualifier::class.java
@@ -128,6 +131,7 @@ private fun initHeadlessResourceEnvironment() {
             lastLocale = locale
             lastResourceEnvironment = constructor.newInstance(
                 LanguageQualifier(locale.language),
+                ScriptQualifier(locale.script),
                 RegionQualifier(locale.country),
                 ThemeQualifier.LIGHT, // safe default, no Skiko needed
                 DensityQualifier.MDPI  // safe default, no Swing needed
@@ -151,7 +155,7 @@ private fun init() {
     Logger.setLogWriters(
         JavaUtilFileLogger(
             isEnabled = true,
-            redirectStderr = !BuildKonfig.DEBUG,
+            redirectStderr = !BuildKonfig.DEBUG || System.getenv("PANO_KEEP_STDERR") == null,
             printToStd = true
         )
     )
@@ -178,6 +182,7 @@ private fun preventMultipleInstances() {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 fun main(args: Array<String>) {
     val cmdlineArgs = DesktopStuff.parseCmdlineArgs(args)
     DesktopStuff.setSystemProperties()
@@ -538,7 +543,7 @@ fun main(args: Array<String>) {
                                     when (e?.button) {
                                         MouseEvent.BUTTON1 if e.clickCount == 1 -> {
                                             trayMenuDelayJob = Stuff.appScope.launch {
-                                                delay(100)
+                                                delay(100.milliseconds)
                                                 trayMenuPos = e.locationOnScreen
                                             }
                                         }
@@ -604,6 +609,10 @@ fun main(args: Array<String>) {
                 icon = painterResource(Res.drawable.ic_launcher_with_bg)
             ) {
                 val density = LocalDensity.current
+
+                LaunchedEffect(Unit) {
+                    window.exceptionHandler = null
+                }
 
                 LaunchedEffect(Unit) {
                     if (DesktopStuff.os == DesktopStuff.Os.Windows)
@@ -738,7 +747,8 @@ private fun TrayWindow(
     val xScaled = location.x / graphicsConfig.defaultTransform.scaleX.toFloat()
     val yScaled = location.y / graphicsConfig.defaultTransform.scaleY.toFloat()
 
-    var visible by remember { mutableStateOf(false) }
+    // Show first so the window is laid out and has a real size
+    var visible by remember { mutableStateOf(true) }
     val state = rememberWindowState(
         position = WindowPosition.Absolute(0.dp, 0.dp),
         size = DpSize.Unspecified,
@@ -771,6 +781,11 @@ private fun TrayWindow(
             val usableHeight =
                 screenBounds.height - screenInsets.top - screenInsets.bottom
 
+            // Wait until the window has been laid out (size is non-zero)
+            while (window.size.width == 0 || window.size.height == 0) {
+                delay(10.milliseconds)
+            }
+
             val winSize = window.size
             var newX = xScaled.toInt()
             var newY = yScaled.toInt()
@@ -792,7 +807,6 @@ private fun TrayWindow(
             }
 
             state.position = WindowPosition.Absolute(newX.dp, newY.dp)
-            visible = true
         }
 
         LifecycleResumeEffect(Unit) {
