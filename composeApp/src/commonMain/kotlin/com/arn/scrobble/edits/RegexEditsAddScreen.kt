@@ -237,7 +237,7 @@ fun RegexEditsAddScreen(
                     appIds = appItems.map { it.appId }.toSet(),
                     blockPlayerAction = blockPlayerAction,
                     caseSensitive = caseSensitive,
-                    continueMatching = continueMatching
+                    continueMatching = false
                 )
             }
 
@@ -572,12 +572,14 @@ fun RegexEditsAddScreen(
                 }
             )
 
-            LabeledCheckbox(
-                checked = continueMatching,
-                onCheckedChange = { continueMatching = it },
-                text = stringResource(Res.string.edit_continue_regex),
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (regexMode != RegexMode.Block) {
+                LabeledCheckbox(
+                    checked = continueMatching,
+                    onCheckedChange = { continueMatching = it },
+                    text = stringResource(Res.string.edit_continue_regex),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             LabeledCheckbox(
                 checked = caseSensitive,
@@ -589,7 +591,6 @@ fun RegexEditsAddScreen(
 
         Surface(
             tonalElevation = 4.dp,
-            shadowElevation = 4.dp,
             shape = CircleShape,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -896,12 +897,26 @@ private fun SearchFields(
 private fun ExtractOptions(
     modifier: Modifier
 ) {
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+
+    val captureGroupsHighlighter = remember {
+        HighlighterVisualTransformation(
+            stringsToHighlight = listOf(
+                RegexEdit.Field.track.name,
+                RegexEdit.Field.album.name,
+                RegexEdit.Field.artist.name,
+                RegexEdit.Field.albumArtist.name,
+            ),
+            highlightColor = tertiaryColor
+        )
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier
     ) {
         Text(
-            text = stringResource(Res.string.edit_extract_desc),
+            text = captureGroupsHighlighter.highlight(stringResource(Res.string.edit_extract_desc)),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.fillMaxWidth()
         )
