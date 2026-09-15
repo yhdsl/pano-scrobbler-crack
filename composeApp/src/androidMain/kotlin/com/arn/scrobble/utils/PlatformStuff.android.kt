@@ -94,6 +94,10 @@ actual object PlatformStuff {
     }
 
     actual val supportsDynamicColors = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    actual val supportsBlur by lazy { Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !isTv }
+
+    actual val supportsSpotifyRemote
+        get() = !isTv
 
     actual const val isDesktop = false
 
@@ -201,7 +205,9 @@ actual object PlatformStuff {
         }
 
         try {
-            val browserIntent = Intent(Intent.ACTION_VIEW, url.toUri())
+            val uri = Stuff.localizeLastfmUrl(url).toUri()
+
+            val browserIntent = Intent(Intent.ACTION_VIEW, uri)
             browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
             applicationContext.startActivity(browserIntent)

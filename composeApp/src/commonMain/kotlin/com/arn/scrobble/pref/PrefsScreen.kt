@@ -1,16 +1,20 @@
 package com.arn.scrobble.pref
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -21,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation3.runtime.result.ResultEffect
 import com.arn.scrobble.BuildKonfig
 import com.arn.scrobble.api.AccountType
 import com.arn.scrobble.api.Requesters
@@ -38,18 +43,20 @@ import com.arn.scrobble.icons.MoreHoriz
 import com.arn.scrobble.icons.MusicNote
 import com.arn.scrobble.icons.Person
 import com.arn.scrobble.icons.SwapVert
+import com.arn.scrobble.icons.Timer
+import com.arn.scrobble.icons.ToggleOff
 import com.arn.scrobble.icons.Translate
 import com.arn.scrobble.main.MainViewModel
 import com.arn.scrobble.main.ScrobblerState
 import com.arn.scrobble.navigation.PanoRoute
-import com.arn.scrobble.themes.DayNightMode
+import com.arn.scrobble.navigation.TimePickerResult
+import com.arn.scrobble.ui.PanoDropdownMenu
 import com.arn.scrobble.ui.PanoLazyColumn
-import com.arn.scrobble.ui.SearchField
+import com.arn.scrobble.ui.SearchEffect
 import com.arn.scrobble.ui.SimpleHeaderItem
 import com.arn.scrobble.ui.accountTypeLabel
 import com.arn.scrobble.ui.accountTypeStringRes
 import com.arn.scrobble.ui.getActivityOrNull
-import com.arn.scrobble.ui.horizontalOverscanPadding
 import com.arn.scrobble.utils.LocaleUtils
 import com.arn.scrobble.utils.PanoNotifications
 import com.arn.scrobble.utils.PlatformStuff
@@ -66,9 +73,11 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import pano_scrobbler.composeapp.generated.resources.Res
 import pano_scrobbler.composeapp.generated.resources.album_art
@@ -78,20 +87,24 @@ import pano_scrobbler.composeapp.generated.resources.artist_image
 import pano_scrobbler.composeapp.generated.resources.auto
 import pano_scrobbler.composeapp.generated.resources.automation
 import pano_scrobbler.composeapp.generated.resources.cache
+import pano_scrobbler.composeapp.generated.resources.charts_custom
 import pano_scrobbler.composeapp.generated.resources.copy_sk
 import pano_scrobbler.composeapp.generated.resources.country_for_api
-import pano_scrobbler.composeapp.generated.resources.dark
+import pano_scrobbler.composeapp.generated.resources.crashlytics
 import pano_scrobbler.composeapp.generated.resources.debug_menu
 import pano_scrobbler.composeapp.generated.resources.delete_account
 import pano_scrobbler.composeapp.generated.resources.delete_receipt
 import pano_scrobbler.composeapp.generated.resources.demo_mode
 import pano_scrobbler.composeapp.generated.resources.desktop
+import pano_scrobbler.composeapp.generated.resources.disable
 import pano_scrobbler.composeapp.generated.resources.external_metadata
 import pano_scrobbler.composeapp.generated.resources.first_artist
+import pano_scrobbler.composeapp.generated.resources.grant_notification_access
 import pano_scrobbler.composeapp.generated.resources.lastfm
-import pano_scrobbler.composeapp.generated.resources.light
 import pano_scrobbler.composeapp.generated.resources.min_track_duration
 import pano_scrobbler.composeapp.generated.resources.notification_channel_blocked
+import pano_scrobbler.composeapp.generated.resources.num_hours
+import pano_scrobbler.composeapp.generated.resources.pause_for
 import pano_scrobbler.composeapp.generated.resources.pref_about
 import pano_scrobbler.composeapp.generated.resources.pref_auto_detect
 import pano_scrobbler.composeapp.generated.resources.pref_blocked_metadata
@@ -108,8 +121,10 @@ import pano_scrobbler.composeapp.generated.resources.pref_imexport
 import pano_scrobbler.composeapp.generated.resources.pref_import
 import pano_scrobbler.composeapp.generated.resources.pref_link_heart_button_rating
 import pano_scrobbler.composeapp.generated.resources.pref_locale
+import pano_scrobbler.composeapp.generated.resources.pref_master
 import pano_scrobbler.composeapp.generated.resources.pref_misc
 import pano_scrobbler.composeapp.generated.resources.pref_now_playing
+import pano_scrobbler.composeapp.generated.resources.pref_offline_info
 import pano_scrobbler.composeapp.generated.resources.pref_oss_credits
 import pano_scrobbler.composeapp.generated.resources.pref_personalization
 import pano_scrobbler.composeapp.generated.resources.pref_prevent_duplicate_ambient_scrobbles
@@ -125,7 +140,6 @@ import pano_scrobbler.composeapp.generated.resources.pref_spotify_remote
 import pano_scrobbler.composeapp.generated.resources.pref_themes
 import pano_scrobbler.composeapp.generated.resources.pref_translate
 import pano_scrobbler.composeapp.generated.resources.pref_translate_credits
-import pano_scrobbler.composeapp.generated.resources.pref_tray_icon_theme
 import pano_scrobbler.composeapp.generated.resources.proxy
 import pano_scrobbler.composeapp.generated.resources.rate_limit_warn
 import pano_scrobbler.composeapp.generated.resources.regex_rules
@@ -138,11 +152,14 @@ import pano_scrobbler.composeapp.generated.resources.system
 import pano_scrobbler.composeapp.generated.resources.when_not_using
 import java.util.Calendar
 import java.util.Locale
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 
 @Composable
 fun PrefsScreen(
+    searchFieldState: TextFieldState,
     onNavigate: (PanoRoute) -> Unit,
     mainViewModel: MainViewModel,
     modifier: Modifier = Modifier,
@@ -153,6 +170,7 @@ fun PrefsScreen(
     val scrobblerState by mainViewModel.scrobblerStateFlow.collectAsStateWithLifecycle()
 
     val scrobblerEnabled by mainPrefs.data.collectAsStateWithInitialValue { it.scrobblerEnabled }
+    val scrobblerPausedTill by mainPrefs.data.collectAsStateWithInitialValue { it.scrobblerPausedTill }
     val allowedPackages by mainPrefs.data.collectAsStateWithInitialValue { it.allowedPackages }
     val scrobbleSpotifyRemoteP by mainPrefs.data.collectAsStateWithInitialValue { it.scrobbleSpotifyRemoteP }
     val autoDetectApps by mainPrefs.data.collectAsStateWithInitialValue { it.autoDetectApps }
@@ -176,8 +194,8 @@ fun PrefsScreen(
     mainPrefs.data.collectAsStateWithInitialValue { it.preventDuplicateAmbientScrobbles }
     val submitNowPlaying by
     mainPrefs.data.collectAsStateWithInitialValue { it.submitNowPlaying }
-    val trayIconTheme by
-    mainPrefs.data.collectAsStateWithInitialValue { it.trayIconTheme }
+//    val trayIconTheme by
+//    mainPrefs.data.collectAsStateWithInitialValue { it.trayIconTheme }
     val notiPersistent by
     mainPrefs.data.collectAsStateWithInitialValue { it.notiPersistent }
     val checkForUpdates by
@@ -218,15 +236,17 @@ fun PrefsScreen(
 
     val maybeActivity = getActivityOrNull()
 
-    var searchTerm by rememberSaveable { mutableStateOf("") }
-    val searchActive = searchTerm.isNotBlank()
+    var searchText by rememberSaveable { mutableStateOf(searchFieldState.text) }
+    val searchActive = searchText.isNotBlank()
     val keysToTitleRes = remember { mutableMapOf<String, TitleStringResource>() }
     var filteredKeys by remember { mutableStateOf(setOf<String>()) }
     var localeChanged by remember { mutableStateOf(false) }
 
-    LaunchedEffect(searchTerm, localeChanged) {
-        delay(500.milliseconds)
+    SearchEffect(searchFieldState) {
+        searchText = it
+    }
 
+    LaunchedEffect(searchText, localeChanged) {
         if (searchActive) {
             val fk = mutableSetOf<String>()
             var prevHeaderKey: String? = null
@@ -250,7 +270,9 @@ fun PrefsScreen(
                         }
                     }
 
-                    if (v.string?.contains(searchTerm, ignoreCase = true) == true) {
+                    if (v.string?.contains(searchText, ignoreCase = true) == true ||
+                        k.split("_").any { it.startsWith(searchText, ignoreCase = true) }
+                    ) {
                         if (prevHeaderKey != null) {
                             fk += prevHeaderKey
                             prevHeaderKey = null
@@ -285,694 +307,834 @@ fun PrefsScreen(
         mainViewModel.updateScrobblerServiceState(scrobblerEnabled)
     }
 
-    Column(
+    ResultEffect<TimePickerResult> { res ->
+        val then = Calendar.getInstance()
+        then.set(Calendar.HOUR_OF_DAY, res.hour)
+        then.set(Calendar.MINUTE, res.minute)
+
+        // if the selected time is in the past, add a day
+        if (then.timeInMillis <= System.currentTimeMillis()) {
+            then.add(Calendar.DAY_OF_MONTH, 1)
+        }
+
+        mainPrefs.updateData { p ->
+            p.copy(
+                scrobblerEnabled = true,
+                scrobblerPausedTill = then.timeInMillis
+            )
+        }
+    }
+
+    PanoLazyColumn(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier
     ) {
-        SearchField(
-            searchTerm,
-            onSearchTermChange = { searchTerm = it },
-            modifier = Modifier.padding(horizontal = horizontalOverscanPadding())
-        )
+        fun filteredItem(
+            key: String,
+            titleRes: StringResource,
+            formatRes: StringResource? = null,
+            content: @Composable (title: String) -> Unit
+        ) {
+            keysToTitleRes.computeIfAbsent(key) {
+                TitleStringResource(titleRes, formatRes)
+            }
 
-        PanoLazyColumn(modifier = Modifier.fillMaxSize()) {
-            fun filteredItem(
-                key: String,
-                titleRes: StringResource,
-                formatRes: StringResource? = null,
-                content: @Composable (title: String) -> Unit
-            ) {
-                keysToTitleRes.computeIfAbsent(key) {
-                    TitleStringResource(titleRes, formatRes)
+            if (key in filteredKeys || !searchActive) {
+                item(key) {
+                    val titleStr = if (formatRes == null)
+                        stringResource(titleRes)
+                    else
+                        stringResource(titleRes, stringResource(formatRes))
+
+                    content(titleStr)
                 }
+            }
+        }
 
-                if (key in filteredKeys || !searchActive) {
-                    item(key) {
-                        val titleStr = if (formatRes == null)
-                            stringResource(titleRes)
-                        else
-                            stringResource(titleRes, stringResource(formatRes))
+        fun filteredHeader(
+            keySuffix: String,
+            titleRes: StringResource,
+            imageVector: ImageVector,
+        ) {
+            val key = "header_$keySuffix"
 
-                        content(titleStr)
+            keysToTitleRes.computeIfAbsent(key) {
+                TitleStringResource(titleRes, null)
+            }
+
+            if (key in filteredKeys || !searchActive) {
+                item(key) {
+                    SimpleHeaderItem(
+                        text = stringResource(titleRes),
+                        icon = imageVector,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    )
+                }
+            }
+        }
+
+        filteredHeader("scrobbling", Res.string.scrobbles, Icons.MusicNote)
+
+//            PlatformSpecificPrefs.prefScrobbler(
+//                ::filteredItem,
+//                scrobblerEnabled,
+//                scrobblerState != ScrobblerState.NLSDisabled,
+//                onNavigate
+//            )
+
+        filteredItem("scrobble_enabled", Res.string.pref_master, null) { title ->
+            val scope = rememberCoroutineScope()
+            val nlsEnabled = scrobblerState != ScrobblerState.NLSDisabled
+            var dropdownShown by remember { mutableStateOf(false) }
+            var now by remember(scrobblerPausedTill) { mutableLongStateOf(System.currentTimeMillis()) }
+            val isPaused = scrobblerPausedTill > now
+            val summary = if (!nlsEnabled)
+                stringResource(Res.string.grant_notification_access)
+            else if (isPaused)
+                stringResource(Res.string.pause_for) + ": " +
+                        Stuff.humanReadableDuration(scrobblerPausedTill - now)
+            else
+                stringResource(Res.string.pref_offline_info)
+
+            if (isPaused && nlsEnabled) {
+                LaunchedEffect(Unit) {
+                    while (isActive) {
+                        delay(1.seconds)
+                        now = System.currentTimeMillis()
                     }
                 }
             }
 
-            fun filteredHeader(
-                keySuffix: String,
-                titleRes: StringResource,
-                imageVector: ImageVector,
-            ) {
-                val key = "header_$keySuffix"
-
-                keysToTitleRes.computeIfAbsent(key) {
-                    TitleStringResource(titleRes, null)
+            SwitchPref(
+                text = title,
+                summary = summary,
+                value = scrobblerEnabled && nlsEnabled && !isPaused,
+                copyToSave = {
+                    if (!nlsEnabled) {
+                        onNavigate(PanoRoute.Onboarding)
+                        this
+                    } else if (!it) {
+                        dropdownShown = true
+                        this
+                    } else {
+                        PlatformSpecificPrefs.onPrefScrobblerToggled(it)
+                        copy(scrobblerEnabled = it, scrobblerPausedTill = -1L)
+                    }
                 }
+            )
 
-                if (key in filteredKeys || !searchActive) {
-                    item(key) {
-                        SimpleHeaderItem(
-                            text = stringResource(titleRes),
-                            icon = imageVector,
+            Box {
+                PanoDropdownMenu(
+                    expanded = dropdownShown,
+                    onDismissRequest = { dropdownShown = false },
+                ) {
+                    item(
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.ToggleOff,
+                                contentDescription = null
+                            )
+                        },
+                        text = {
+                            Text(stringResource(Res.string.disable))
+                        },
+                        onClick = {
+                            scope.launch {
+                                mainPrefs.updateData { p ->
+                                    p.copy(
+                                        scrobblerEnabled = false,
+                                        scrobblerPausedTill = -1L
+                                    )
+                                }
+                            }
+                            PlatformSpecificPrefs.onPrefScrobblerToggled(false)
+                            dropdownShown = false
+                        }
+                    )
+
+                    arrayOf(
+                        30.minutes,
+                        1.hours,
+                        2.hours,
+                        4.hours,
+                    ).forEach {
+                        item(
+                            text = {
+                                val formattedDuration = if (it.inWholeHours >= 1)
+                                    pluralStringResource(
+                                        Res.plurals.num_hours,
+                                        it.inWholeHours.toInt(),
+                                        it.inWholeHours.toInt()
+                                    )
+                                else
+                                    Stuff.humanReadableDuration(it.inWholeMilliseconds)
+                                Text(
+                                    stringResource(Res.string.pause_for) + ": " + formattedDuration
+                                )
+                            },
+                            onClick = {
+                                scope.launch {
+                                    mainPrefs.updateData { p ->
+                                        p.copy(
+                                            scrobblerEnabled = true,
+                                            scrobblerPausedTill = System.currentTimeMillis() + it.inWholeMilliseconds
+                                        )
+                                    }
+                                }
+                                dropdownShown = false
+                            }
+                        )
+                    }
+
+                    if (!PlatformStuff.isTv) {
+                        // the time picker has trapped focus issues on TV
+                        item(
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Timer,
+                                    contentDescription = null
+                                )
+                            },
+                            text = {
+                                Text(
+                                    stringResource(Res.string.pause_for) + ": " + stringResource(Res.string.charts_custom)
+                                )
+                            },
+                            onClick = {
+                                dropdownShown = false
+
+                                val (h, m) = Calendar.getInstance().let {
+                                    it.get(Calendar.HOUR_OF_DAY) to it.get(Calendar.MINUTE)
+                                }
+                                onNavigate(PanoRoute.Modal.TimePicker(h, m))
+                            }
                         )
                     }
                 }
             }
+        }
 
-            filteredHeader("scrobbling", Res.string.scrobbles, Icons.MusicNote)
+        PlatformSpecificPrefs.prefQuickSettings(::filteredItem, scrobblerEnabled)
 
-            PlatformSpecificPrefs.prefScrobbler(
-                ::filteredItem,
-                scrobblerEnabled,
-                scrobblerState != ScrobblerState.NLSDisabled,
-                onNavigate
-            )
+        PlatformSpecificPrefs.prefAutostart(::filteredItem)
 
-            PlatformSpecificPrefs.prefQuickSettings(::filteredItem, scrobblerEnabled)
+        PlatformSpecificPrefs.prefAddToAppLauncher(::filteredItem)
 
-            PlatformSpecificPrefs.prefAutostart(::filteredItem)
-
-            PlatformSpecificPrefs.prefAddToAppLauncher(::filteredItem)
-
-            filteredItem(MainPrefs::allowedPackages.name, Res.string.pref_scrobble_from) { title ->
-                Column(Modifier.fillMaxWidth()) {
-                    AppIconsPref(
-                        packageNames = allowedPackages,
-                        title = title,
-                        onClick = {
-                            onNavigate(
-                                PanoRoute.AppList(
-                                    saveType = AppListSaveType.Scrobbling,
-                                    preSelectedPackages = allowedPackages.toList(),
-                                    isSingleSelect = false,
-                                )
-                            )
-                        }
-                    )
-                    Text(
-                        text = "ⓘ " + stringResource(Res.string.pref_enabled_apps_summary),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(
-                            horizontal = horizontalOverscanPadding()
-                        ).padding(bottom = 16.dp)
-                    )
-                }
-            }
-
-            if (!PlatformStuff.isTv && !PlatformStuff.isDesktop) {
-                filteredItem(MainPrefs::autoDetectApps.name, Res.string.pref_auto_detect) { title ->
-                    val notiEnabled =
-                        remember { PanoNotifications.isNotiChannelEnabled(Stuff.CHANNEL_NOTI_NEW_APP) }
-
-                    SwitchPref(
-                        text = title,
-                        summary = if (!notiEnabled) stringResource(Res.string.notification_channel_blocked) else null,
-                        value = notiEnabled && autoDetectApps,
-                        enabled = notiEnabled,
-                        copyToSave = { copy(autoDetectApps = it) },
-                    )
-                }
-            }
-
-            if (!PlatformStuff.isDesktop && !PlatformStuff.isTv) {
-                filteredItem(
-                    MainPrefs::scrobbleSpotifyRemoteP.name,
-                    Res.string.pref_spotify_remote
-                ) { title ->
-                    SwitchPref(
-                        text = title,
-                        value = scrobbleSpotifyRemoteP,
-                        copyToSave = { copy(scrobbleSpotifyRemote = it) }
-                    )
-                }
-            }
-
-            filteredItem(
-                MainPrefs::extractFirstArtistPackages.name,
-                Res.string.first_artist
-            ) { title ->
+        filteredItem("allowed_apps", Res.string.pref_scrobble_from) { title ->
+            Column(Modifier.fillMaxWidth()) {
                 AppIconsPref(
-                    packageNames = extractFirstArtistPackages,
+                    packageNames = allowedPackages,
                     title = title,
-                    enabled = (allowedPackages.size + extractFirstArtistPackages.size) > 0,
                     onClick = {
                         onNavigate(
                             PanoRoute.AppList(
-                                saveType = AppListSaveType.ExtractFirstArtist,
-                                packagesOverride = (allowedPackages union extractFirstArtistPackages).toList(),
-                                preSelectedPackages = extractFirstArtistPackages.toList(),
+                                saveType = AppListSaveType.Scrobbling,
+                                preSelectedPackages = allowedPackages.toList(),
                                 isSingleSelect = false,
                             )
                         )
                     }
                 )
+                Text(
+                    text = "ⓘ " + stringResource(Res.string.pref_enabled_apps_summary),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(ListItemDefaults.ContentPadding)
+                )
             }
+        }
 
-            filteredItem(MainPrefs::submitNowPlaying.name, Res.string.pref_now_playing) { title ->
+        if (!PlatformStuff.isTv && !PlatformStuff.isDesktop) {
+            filteredItem("auto_detect", Res.string.pref_auto_detect) { title ->
+                val notiEnabled =
+                    remember { PanoNotifications.isNotiChannelEnabled(Stuff.CHANNEL_NOTI_NEW_APP) }
+
                 SwitchPref(
                     text = title,
-                    value = submitNowPlaying,
-                    copyToSave = { copy(submitNowPlaying = it) }
+                    summary = if (!notiEnabled) stringResource(Res.string.notification_channel_blocked) else null,
+                    value = notiEnabled && autoDetectApps,
+                    enabled = notiEnabled,
+                    copyToSave = { copy(autoDetectApps = it) },
                 )
             }
+        }
 
-            filteredItem(MainPrefs::minDurationSecsP.name, Res.string.min_track_duration) { title ->
-                SliderPref(
+        if (PlatformStuff.supportsSpotifyRemote) {
+            filteredItem(
+                "spotify_remote",
+                Res.string.pref_spotify_remote
+            ) { title ->
+                SwitchPref(
                     text = title,
-                    value = minDurationSecs.toFloat(),
-                    copyToSave = { copy(minDurationSecs = it) },
-                    min = MainPrefs.PREF_MIN_DURATON_SECS_MIN,
-                    max = MainPrefs.PREF_MIN_DURATON_SECS_MAX,
-                    default = MainPrefs.PREF_MIN_DURATON_SECS_DEFAULT,
-                    increments = 5,
-                    stringRepresentation = { Stuff.humanReadableDuration(it * 1000L) }
+                    value = scrobbleSpotifyRemoteP,
+                    copyToSave = { copy(scrobbleSpotifyRemote = it) }
                 )
             }
+        }
 
-            PlatformSpecificPrefs.discordRpc(::filteredItem, onNavigate)
-
-            PlatformSpecificPrefs.prefPersistentNotification(::filteredItem, notiPersistent)
-
-            filteredHeader("delay", Res.string.pref_delay, Icons.HourglassEmpty)
-
-            filteredItem(MainPrefs::delayPercentP.name, Res.string.pref_delay_per) { title ->
-                SliderPref(
-                    text = title,
-                    value = delayPercent.toFloat(),
-                    copyToSave = { copy(delayPercent = it) },
-                    min = MainPrefs.PREF_DELAY_PER_MIN,
-                    max = MainPrefs.PREF_DELAY_PER_MAX,
-                    default = MainPrefs.PREF_DELAY_PER_DEFAULT,
-                    increments = 1,
-                    stringRepresentation = { "${it}%" }
-                )
-            }
-
-            filteredItem(MainPrefs::delaySecsP.name, Res.string.pref_delay_mins) { title ->
-                Column(Modifier.fillMaxWidth()) {
-                    SliderPref(
-                        text = title,
-                        value = delaySecs.toFloat(),
-                        copyToSave = { copy(delaySecs = it) },
-                        min = MainPrefs.PREF_DELAY_SECS_MIN,
-                        max = MainPrefs.PREF_DELAY_SECS_MAX,
-                        default = MainPrefs.PREF_DELAY_SECS_DEFAULT,
-                        increments = 5,
-                        stringRepresentation = { Stuff.humanReadableDuration(it * 1000L) },
-                    )
-
-                    if (delaySecs <= 59) {
-                        Text(
-                            text = "ⓘ " + stringResource(Res.string.rate_limit_warn),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.titleSmall,
-                            modifier = Modifier.padding(
-                                horizontal = horizontalOverscanPadding()
-                            ).padding(bottom = 16.dp)
+        filteredItem(
+            "first_artist",
+            Res.string.first_artist
+        ) { title ->
+            AppIconsPref(
+                packageNames = extractFirstArtistPackages,
+                title = title,
+                enabled = (allowedPackages.size + extractFirstArtistPackages.size) > 0,
+                onClick = {
+                    onNavigate(
+                        PanoRoute.AppList(
+                            saveType = AppListSaveType.ExtractFirstArtist,
+                            packagesOverride = (allowedPackages union extractFirstArtistPackages).toList(),
+                            preSelectedPackages = extractFirstArtistPackages.toList(),
+                            isSingleSelect = false,
                         )
-                    }
+                    )
                 }
-            }
+            )
+        }
 
-            filteredHeader("personalization", Res.string.pref_personalization, Icons.Person)
+        filteredItem("now_playing", Res.string.pref_now_playing) { title ->
+            SwitchPref(
+                text = title,
+                value = submitNowPlaying,
+                copyToSave = { copy(submitNowPlaying = it) }
+            )
+        }
 
-            filteredItem(MainPrefs::themeName.name, Res.string.pref_themes) { title ->
-                TextPref(
+        filteredItem("minimum_duration", Res.string.min_track_duration) { title ->
+            SliderPref(
+                text = title,
+                value = minDurationSecs.toFloat(),
+                copyToSave = { copy(minDurationSecs = it) },
+                min = MainPrefs.PREF_MIN_DURATON_SECS_MIN,
+                max = MainPrefs.PREF_MIN_DURATON_SECS_MAX,
+                default = MainPrefs.PREF_MIN_DURATON_SECS_DEFAULT,
+                increments = 5,
+                stringRepresentation = { Stuff.humanReadableDuration(it * 1000L) }
+            )
+        }
+
+        PlatformSpecificPrefs.discordRpc(::filteredItem, onNavigate)
+
+        PlatformSpecificPrefs.prefPersistentNotification(::filteredItem, notiPersistent)
+
+        filteredHeader("delay", Res.string.pref_delay, Icons.HourglassEmpty)
+
+        filteredItem("delay_percent", Res.string.pref_delay_per) { title ->
+            SliderPref(
+                text = title,
+                value = delayPercent.toFloat(),
+                copyToSave = { copy(delayPercent = it) },
+                min = MainPrefs.PREF_DELAY_PER_MIN,
+                max = MainPrefs.PREF_DELAY_PER_MAX,
+                default = MainPrefs.PREF_DELAY_PER_DEFAULT,
+                increments = 1,
+                stringRepresentation = { "${it}%" }
+            )
+        }
+
+        filteredItem("delay_minutes", Res.string.pref_delay_mins) { title ->
+            Column(Modifier.fillMaxWidth()) {
+                SliderPref(
                     text = title,
-                    locked = !isLicenseValid,
-                    onClick = {
-                        onNavigate(PanoRoute.ThemeChooser)
-                    }
+                    value = delaySecs.toFloat(),
+                    copyToSave = { copy(delaySecs = it) },
+                    min = MainPrefs.PREF_DELAY_SECS_MIN,
+                    max = MainPrefs.PREF_DELAY_SECS_MAX,
+                    default = MainPrefs.PREF_DELAY_SECS_DEFAULT,
+                    increments = 5,
+                    stringRepresentation = { Stuff.humanReadableDuration(it * 1000L) },
                 )
-            }
 
-            if (PlatformStuff.isDesktop) {
-                filteredItem(
-                    MainPrefs::trayIconTheme.name,
-                    Res.string.pref_tray_icon_theme
-                ) { title ->
-                    DropdownPref(
-                        text = title,
-                        selectedValue = trayIconTheme,
-                        values = DayNightMode.entries,
-                        toLabel = {
-                            stringResource(
-                                when (it) {
-                                    DayNightMode.SYSTEM -> Res.string.auto
-                                    DayNightMode.LIGHT -> Res.string.light
-                                    DayNightMode.DARK -> Res.string.dark
-                                }
-                            )
-                        },
-                        copyToSave = { copy(trayIconTheme = it) }
+                if (delaySecs <= 59) {
+                    Text(
+                        text = "ⓘ " + stringResource(Res.string.rate_limit_warn),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(ListItemDefaults.ContentPadding)
                     )
                 }
             }
+        }
 
-            PlatformSpecificPrefs.prefChartsWidget(::filteredItem)
+        filteredHeader("lists", Res.string.simple_edits, Icons.EditNote)
 
+        filteredItem("simple_edits", Res.string.simple_edits) { title ->
+            TextPref(
+                text = title + ": " + numSimpleEdits.format(),
+                onClick = {
+                    onNavigate(PanoRoute.SimpleEdits)
+                }
+            )
+        }
+
+        filteredItem("regex_edits", Res.string.regex_rules) { title ->
+            TextPref(
+                text = title + ": " + numRegexEdits.format(),
+                onClick = {
+                    onNavigate(PanoRoute.RegexEdits)
+                }
+            )
+        }
+
+        filteredItem("blocked_metadata", Res.string.pref_blocked_metadata) { title ->
+            TextPref(
+                text = title + ": " + numBlockedMetadata.format(),
+                onClick = {
+                    onNavigate(PanoRoute.BlockedMetadatas)
+                },
+                locked = !isLicenseValid,
+            )
+        }
+
+        filteredHeader("personalization", Res.string.pref_personalization, Icons.Person)
+
+        filteredItem("themes", Res.string.pref_themes) { title ->
+            TextPref(
+                text = title,
+                onClick = {
+                    onNavigate(PanoRoute.ThemeChooser)
+                }
+            )
+        }
+
+//        if (PlatformStuff.isDesktop) {
+//            filteredItem(
+//                "tray_icon_theme",
+//                Res.string.pref_tray_icon_theme
+//            ) { title ->
+//                DropdownPref(
+//                    text = title,
+//                    selectedValue = trayIconTheme,
+//                    values = DayNightMode.entries,
+//                    toLabel = {
+//                        stringResource(
+//                            when (it) {
+//                                DayNightMode.SYSTEM -> Res.string.auto
+//                                DayNightMode.LIGHT -> Res.string.light
+//                                DayNightMode.DARK -> Res.string.dark
+//                            }
+//                        )
+//                    },
+//                    copyToSave = { copy(trayIconTheme = it) }
+//                )
+//            }
+//        }
+
+        PlatformSpecificPrefs.prefChartsWidget(::filteredItem)
+
+        filteredItem(
+            "scrobble_app",
+            Res.string.pref_show_scrobble_sources
+        ) { title ->
+            SwitchPref(
+                text = title,
+                summary = stringResource(Res.string.pref_show_scrobble_sources_desc),
+                value = showScrobbleSources,
+                onNavigateToBilling = onNavigateToBilling.takeIf { !isLicenseValid },
+                copyToSave = { copy(showScrobbleSources = it) }
+            )
+        }
+
+        if (!PlatformStuff.isDesktop) {
             filteredItem(
-                MainPrefs::showScrobbleSources.name,
-                Res.string.pref_show_scrobble_sources
+                "search_app",
+                Res.string.pref_search_in_source
             ) { title ->
                 SwitchPref(
                     text = title,
-                    summary = stringResource(Res.string.pref_show_scrobble_sources_desc),
-                    value = showScrobbleSources,
+                    summary = stringResource(Res.string.pref_search_in_source_desc),
+                    value = searchInSource,
                     onNavigateToBilling = onNavigateToBilling.takeIf { !isLicenseValid },
-                    copyToSave = { copy(showScrobbleSources = it) }
+                    enabled = showScrobbleSources,
+                    copyToSave = { copy(searchInSource = it) }
                 )
             }
+        }
 
-            if (!PlatformStuff.isDesktop) {
-                filteredItem(
-                    MainPrefs::searchInSource.name,
-                    Res.string.pref_search_in_source
-                ) { title ->
-                    SwitchPref(
-                        text = title,
-                        summary = stringResource(Res.string.pref_search_in_source_desc),
-                        value = searchInSource,
-                        onNavigateToBilling = onNavigateToBilling.takeIf { !isLicenseValid },
-                        enabled = showScrobbleSources,
-                        copyToSave = { copy(searchInSource = it) }
-                    )
-                }
-            }
-
-            if (!PlatformStuff.isTv) {
-                filteredItem(
-                    MainPrefs::searchUrlTemplate.name,
-                    Res.string.pref_search_url_template
-                ) { title ->
-                    TextPref(
-                        text = title,
-                        summary = searchUrlTemplate,
-                        onClick = {
-                            onNavigate(PanoRoute.Modal.MediaSearchPref)
-                        }
-                    )
-                }
-            }
-
-            if (!PlatformStuff.isTv && !PlatformStuff.isDesktop) {
-                filteredItem(
-                    MainPrefs::linkHeartButtonToRating.name,
-                    Res.string.pref_link_heart_button_rating
-                ) { title ->
-                    SwitchPref(
-                        text = title,
-                        summary = stringResource(Res.string.pref_search_in_source_desc),
-                        value = linkHeartButtonToRating,
-                        onNavigateToBilling = onNavigateToBilling.takeIf { !isLicenseValid },
-                        copyToSave = { copy(linkHeartButtonToRating = it) }
-                    )
-                }
-            }
-
+        if (!PlatformStuff.isTv) {
             filteredItem(
-                MainPrefs::firstDayOfWeek.name,
-                Res.string.pref_first_day_of_week
+                "search_url",
+                Res.string.pref_search_url_template
             ) { title ->
-                val autoString = stringResource(Res.string.auto)
-
-                val valuesToDays = remember {
-                    val cal = Calendar.getInstance()
-
-                    var autoDayName = ""
-
-                    val days = cal.getDisplayNames(
-                        Calendar.DAY_OF_WEEK,
-                        Calendar.LONG,
-                        Locale.getDefault()
-                    )!!
-                        .map { (k, v) ->
-                            if (v == cal.firstDayOfWeek)
-                                autoDayName = k
-                            v to k
-                        }
-                        .toMap()
-
-                    (days + (-1 to "$autoString: $autoDayName")).toSortedMap()
-                }
-
-                DropdownPref(
+                TextPref(
                     text = title,
-                    selectedValue = firstDayOfWeek,
-                    values = valuesToDays.keys,
-                    toLabel = { valuesToDays[it] ?: autoString },
-                    copyToSave = { copy(firstDayOfWeek = it) }
-                )
-            }
-
-            PlatformSpecificPrefs.prefNotifications(::filteredItem)
-
-            filteredHeader("lists", Res.string.simple_edits, Icons.EditNote)
-
-            filteredItem("simple_edits", Res.string.simple_edits) { title ->
-                TextPref(
-                    text = title + ": " + numSimpleEdits.format(),
+                    summary = searchUrlTemplate,
                     onClick = {
-                        onNavigate(PanoRoute.SimpleEdits)
+                        onNavigate(PanoRoute.Modal.MediaSearchPref)
                     }
                 )
             }
+        }
 
-            filteredItem("regex_edits", Res.string.regex_rules) { title ->
-                TextPref(
-                    text = title + ": " + numRegexEdits.format(),
-                    onClick = {
-                        onNavigate(PanoRoute.RegexEdits)
-                    }
+        if (!PlatformStuff.isTv && !PlatformStuff.isDesktop) {
+            filteredItem(
+                "heart_button",
+                Res.string.pref_link_heart_button_rating
+            ) { title ->
+                SwitchPref(
+                    text = title,
+                    summary = stringResource(Res.string.pref_search_in_source_desc),
+                    value = linkHeartButtonToRating,
+                    onNavigateToBilling = onNavigateToBilling.takeIf { !isLicenseValid },
+                    copyToSave = { copy(linkHeartButtonToRating = it) }
                 )
             }
+        }
 
-            filteredItem("blocked_metadata", Res.string.pref_blocked_metadata) { title ->
+        filteredItem(
+            "week_day",
+            Res.string.pref_first_day_of_week
+        ) { title ->
+            val autoString = stringResource(Res.string.auto)
+
+            val valuesToDays = remember {
+                val cal = Calendar.getInstance()
+
+                var autoDayName = ""
+
+                val days = cal.getDisplayNames(
+                    Calendar.DAY_OF_WEEK,
+                    Calendar.LONG,
+                    Locale.getDefault()
+                )!!
+                    .map { (k, v) ->
+                        if (v == cal.firstDayOfWeek)
+                            autoDayName = k
+                        v to k
+                    }
+                    .toMap()
+
+                (days + (-1 to "$autoString: $autoDayName")).toSortedMap()
+            }
+
+            DropdownPref(
+                text = title,
+                selectedValue = firstDayOfWeek,
+                values = valuesToDays.keys,
+                toLabel = { valuesToDays[it] ?: autoString },
+                copyToSave = { copy(firstDayOfWeek = it) }
+            )
+        }
+
+        PlatformSpecificPrefs.prefNotifications(::filteredItem)
+
+        filteredHeader("additional_metatadata", Res.string.external_metadata, Icons.Api)
+
+        filteredItem("lastfm", Res.string.lastfm) { title ->
+            SwitchPref(
+                text = title,
+                value = lastfmApiAlways,
+                summary = stringResource(
+                    Res.string.when_not_using,
+                    stringResource(Res.string.lastfm)
+                ),
+                copyToSave = { copy(lastfmApiAlways = it) }
+            )
+        }
+
+        filteredItem(
+            "fetch_missing_album",
+            Res.string.pref_fetch_missing_album,
+            Res.string.cache
+        ) { title ->
+            SwitchPref(
+                text = stringResource(
+                    Res.string.pref_fetch_missing_album,
+                    stringResource(Res.string.cache) + " & " +
+                            stringResource(Res.string.lastfm)
+                ),
+                value = fetchAlbum,
+                copyToSave = { copy(fetchAlbum = it) }
+            )
+        }
+
+        filteredItem("spotify", Res.string.spotify) { title ->
+            SwitchPref(
+                text = title,
+                summary = stringResource(Res.string.search) + ": " +
+                        stringResource(Res.string.artist_image) + ", " +
+                        stringResource(Res.string.album_art),
+                value = useSpotify,
+                copyToSave = { copy(spotifyApi = it) }
+            )
+        }
+
+        filteredItem(
+            "spotify_country",
+            Res.string.country_for_api,
+            Res.string.spotify
+        ) { title ->
+            val countryCodes = remember { Locale.getISOCountries().toList() }
+
+            DropdownPref(
+                text = title,
+                selectedValue = spotifyCountryP,
+                values = countryCodes,
+                toLabel = { it },
+                copyToSave = { copy(spotifyCountry = it) },
+                enabled = useSpotify
+            )
+        }
+
+        filteredItem(
+            "spotify_search_approximate",
+            Res.string.pref_spotify_artist_search_approximate
+        ) { title ->
+            SwitchPref(
+                text = title,
+                value = spotifyArtistSearchApproximate,
+                copyToSave = { copy(spotifyArtistSearchApproximate = it) },
+                enabled = useSpotify
+            )
+        }
+
+        PlatformSpecificPrefs.deezerApi(::filteredItem, deezerApi)
+
+        PlatformSpecificPrefs.tidalSteelSeries(::filteredItem, tidalSteelSeries)
+
+        filteredHeader("languages", Res.string.pref_locale, Icons.Translate)
+
+        filteredItem("languages_locales", Res.string.pref_locale) { title ->
+            val autoString = stringResource(Res.string.auto)
+
+            val localesMap = remember(locale) {
+                val autoEntry = mapOf("auto" to autoString)
+                LocaleUtils.localesMap.let {
+                    autoEntry + it
+                }
+            }
+
+            DropdownPref(
+                text = title,
+                selectedValue = locale ?: "auto",
+                values = localesMap.keys,
+                toLabel = { localesMap[it] ?: autoString },
+                copyToSave = {
+                    val l = it.takeIf { it != "auto" }
+                    LocaleUtils.setAppLocale(lang = l, maybeActivity)
+                    localeChanged = true
+                    this
+                }
+            )
+        }
+
+        filteredItem("translate", Res.string.pref_translate) { title ->
+            TextPref(
+                text = title,
+                onClick = {
+                    PlatformStuff.openInBrowser(Stuff.CROWDIN_URL)
+                }
+            )
+        }
+
+        filteredItem("translation_credits", Res.string.pref_translate_credits) { title ->
+            TextPref(
+                text = title,
+                onClick = {
+                    onNavigate(PanoRoute.Translators)
+                }
+            )
+        }
+
+        filteredHeader("imexport", Res.string.pref_imexport, Icons.SwapVert)
+
+        filteredItem("export_backup", Res.string.pref_export) { title ->
+            TextPref(
+                text = title,
+                summary = stringResource(Res.string.pref_export_desc),
+                onClick = {
+                    onNavigate(PanoRoute.Export)
+                }
+            )
+        }
+
+        filteredItem("import_restore", Res.string.pref_import) { title ->
+            TextPref(
+                text = title,
+                onClick = {
+                    onNavigate(PanoRoute.Import)
+                }
+            )
+        }
+
+        filteredHeader("services", Res.string.scrobble_services, Icons.Dns)
+
+        AccountType.entries
+            .filterNot {
+                PlatformStuff.isTv && it == AccountType.FILE
+            }
+            .forEach { accountType ->
+                val (strRes, formatRes) = accountTypeStringRes(accountType)
+                filteredItem(
+                    accountType.name,
+                    strRes,
+                    formatRes
+                ) { title ->
+                    AccountPref(
+                        accountTypeLabel(accountType),
+                        type = accountType,
+                        usernamesMap = scrobblableLabels,
+                        onNavigate = onNavigate
+                    )
+                }
+            }
+
+        filteredItem(key = "delete", Res.string.delete_account) { title ->
+            TextPref(
+                text = title,
+                onClick = {
+                    onNavigate(PanoRoute.DeleteAccount)
+                }
+            )
+        }
+
+        filteredHeader("misc", Res.string.pref_misc, Icons.MoreHoriz)
+
+        if (!PlatformStuff.isDesktop && !PlatformStuff.isTv) {
+            filteredItem(
+                "duplicate_ambient",
+                Res.string.pref_prevent_duplicate_ambient_scrobbles
+            ) { title ->
+                SwitchPref(
+                    text = title,
+                    value = preventDuplicateAmbientScrobbles,
+                    copyToSave = { copy(preventDuplicateAmbientScrobbles = it) }
+                )
+            }
+        }
+
+        filteredItem("proxy", Res.string.proxy) { title ->
+            val proxyText = proxy.host + ":" + proxy.port
+
+            TextPref(
+                text = title,
+                summary = when (proxy.type) {
+                    MainPrefs.ProxyPrefs.Type.HTTP -> "http://$proxyText"
+                    MainPrefs.ProxyPrefs.Type.SOCKS5 -> "socks5://$proxyText"
+                    MainPrefs.ProxyPrefs.Type.SYSTEM -> stringResource(Res.string.system)
+                },
+                onClick = {
+                    onNavigate(PanoRoute.Modal.ProxyPref)
+                }
+            )
+        }
+
+        PlatformSpecificPrefs.updateCheck(::filteredItem, checkForUpdates, updateProgress)
+
+        if (!PlatformStuff.isTv) {
+            filteredItem("automation_tasker", Res.string.automation) { title ->
                 TextPref(
-                    text = title + ": " + numBlockedMetadata.format(),
+                    text = title,
                     onClick = {
-                        onNavigate(PanoRoute.BlockedMetadatas)
+                        onNavigate(PanoRoute.AutomationInfo)
                     },
                     locked = !isLicenseValid,
                 )
             }
+        }
 
-            filteredHeader("additional_metatadata", Res.string.external_metadata, Icons.Api)
-
-            filteredItem(MainPrefs::lastfmApiAlways.name, Res.string.lastfm) { title ->
-                SwitchPref(
-                    text = title,
-                    value = lastfmApiAlways,
-                    summary = stringResource(
-                        Res.string.when_not_using,
-                        stringResource(Res.string.lastfm)
-                    ),
-                    copyToSave = { copy(lastfmApiAlways = it) }
-                )
-            }
-
+        if (CrashReporterConfig.isAvailable) {
             filteredItem(
-                MainPrefs::fetchAlbum.name,
-                Res.string.pref_fetch_missing_album,
-                Res.string.cache
-            ) { title ->
-                SwitchPref(
-                    text = stringResource(
-                        Res.string.pref_fetch_missing_album,
-                        stringResource(Res.string.cache) + " & " +
-                                stringResource(Res.string.lastfm)
-                    ),
-                    value = fetchAlbum,
-                    copyToSave = { copy(fetchAlbum = it) }
-                )
-            }
-
-            filteredItem(MainPrefs::spotifyApi.name, Res.string.spotify) { title ->
-                SwitchPref(
-                    text = title,
-                    summary = stringResource(Res.string.search) + ": " +
-                            stringResource(Res.string.artist_image) + ", " +
-                            stringResource(Res.string.album_art),
-                    value = useSpotify,
-                    copyToSave = { copy(spotifyApi = it) }
-                )
-            }
-
-            filteredItem(
-                MainPrefs::spotifyCountryP.name,
-                Res.string.country_for_api,
-                Res.string.spotify
-            ) { title ->
-                val countryCodes = remember { Locale.getISOCountries().toList() }
-
-                DropdownPref(
-                    text = title,
-                    selectedValue = spotifyCountryP,
-                    values = countryCodes,
-                    toLabel = { it },
-                    copyToSave = { copy(spotifyCountry = it) },
-                    enabled = useSpotify
-                )
-            }
-
-            filteredItem(
-                MainPrefs::spotifyArtistSearchApproximate.name,
-                Res.string.pref_spotify_artist_search_approximate
+                "crash_crashlytics",
+                Res.string.pref_crashlytics_enabled
             ) { title ->
                 SwitchPref(
                     text = title,
-                    value = spotifyArtistSearchApproximate,
-                    copyToSave = { copy(spotifyArtistSearchApproximate = it) },
-                    enabled = useSpotify
-                )
-            }
-
-            PlatformSpecificPrefs.deezerApi(::filteredItem, deezerApi)
-
-            PlatformSpecificPrefs.tidalSteelSeries(::filteredItem, tidalSteelSeries)
-
-            filteredHeader("languages", Res.string.pref_locale, Icons.Translate)
-
-            filteredItem(LocaleUtils::locale.name, Res.string.pref_locale) { title ->
-                val autoString = stringResource(Res.string.auto)
-
-                val localesMap = remember(locale) {
-                    val autoEntry = mapOf("auto" to autoString)
-                    LocaleUtils.localesMap.let {
-                        autoEntry + it
-                    }
-                }
-
-                DropdownPref(
-                    text = title,
-                    selectedValue = locale ?: "auto",
-                    values = localesMap.keys,
-                    toLabel = { localesMap[it] ?: autoString },
+                    summary = stringResource(Res.string.crashlytics),
+                    value = crashReporterEnabled,
                     copyToSave = {
-                        val l = it.takeIf { it != "auto" }
-                        LocaleUtils.setAppLocale(lang = l, maybeActivity)
-                        localeChanged = true
+                        crashReporterEnabled = it
+                        CrashReporterConfig.isEnabled = it
                         this
                     }
                 )
             }
+        }
 
-            filteredItem("translate", Res.string.pref_translate) { title ->
-                TextPref(
-                    text = title,
-                    onClick = {
-                        PlatformStuff.openInBrowser(Stuff.CROWDIN_URL)
-                    }
-                )
-            }
+        filteredHeader("about", Res.string.pref_about, Icons.Info)
 
-            filteredItem("translate_credits", Res.string.pref_translate_credits) { title ->
-                TextPref(
-                    text = title,
-                    onClick = {
-                        onNavigate(PanoRoute.Translators)
-                    }
-                )
-            }
-
-            filteredHeader("imexport", Res.string.pref_imexport, Icons.SwapVert)
-
-            filteredItem("export", Res.string.pref_export) { title ->
-                TextPref(
-                    text = title,
-                    summary = stringResource(Res.string.pref_export_desc),
-                    onClick = {
-                        onNavigate(PanoRoute.Export)
-                    }
-                )
-            }
-
-            filteredItem("import", Res.string.pref_import) { title ->
-                TextPref(
-                    text = title,
-                    onClick = {
-                        onNavigate(PanoRoute.Import)
-                    }
-                )
-            }
-
-            filteredHeader("services", Res.string.scrobble_services, Icons.Dns)
-
-            AccountType.entries
-                .filterNot {
-                    PlatformStuff.isTv && it == AccountType.FILE
+        filteredItem(key = "oss_credits_licenses", Res.string.pref_oss_credits) { title ->
+            TextPref(
+                text = title,
+                onClick = {
+                    onNavigate(PanoRoute.OssCredits)
                 }
-                .forEach { accountType ->
-                    val (strRes, formatRes) = accountTypeStringRes(accountType)
-                    filteredItem(
-                        accountType.name,
-                        strRes,
-                        formatRes
-                    ) { title ->
-                        AccountPref(
-                            accountTypeLabel(accountType),
-                            type = accountType,
-                            usernamesMap = scrobblableLabels,
-                            onNavigate = onNavigate
-                        )
-                    }
-                }
+            )
+        }
 
-            filteredItem(key = "delete_account", Res.string.delete_account) { title ->
-                TextPref(
+        filteredItem(key = "privacy_policy", Res.string.pref_privacy_policy) { title ->
+            TextPref(
+                text = title,
+                onClick = {
+                    onNavigate(PanoRoute.PrivacyPolicy)
+                }
+            )
+        }
+
+        filteredItem(
+            key = "about_version",
+            Res.string.also_available_on,
+            if (PlatformStuff.isDesktop)
+                Res.string.android
+            else
+                Res.string.desktop
+        ) { title ->
+            TextPref(
+                text = title,
+                summary = Stuff.HOMEPAGE_URL + "\n" +
+                        ("v" + BuildKonfig.VER_NAME + if (BuildKonfig.DEBUG) " (Debug)" else ""),
+                onClick = {
+                    onNavigate(PanoRoute.Modal.ShowLink(Stuff.HOMEPAGE_URL))
+                }
+            )
+        }
+
+        if (BuildKonfig.DEBUG) {
+            filteredHeader("debug", Res.string.debug_menu, Icons.BugReport)
+
+            filteredItem(MainPrefs::demoModeP.name, Res.string.demo_mode) { title ->
+                SwitchPref(
                     text = title,
-                    onClick = {
-                        onNavigate(PanoRoute.DeleteAccount)
-                    }
+                    value = demoMode,
+                    copyToSave = { copy(demoMode = it) }
                 )
             }
 
-            filteredHeader("misc", Res.string.pref_misc, Icons.MoreHoriz)
-
-            if (!PlatformStuff.isDesktop && !PlatformStuff.isTv) {
-                filteredItem(
-                    MainPrefs::preventDuplicateAmbientScrobbles.name,
-                    Res.string.pref_prevent_duplicate_ambient_scrobbles
-                ) { title ->
-                    SwitchPref(
-                        text = title,
-                        value = preventDuplicateAmbientScrobbles,
-                        copyToSave = { copy(preventDuplicateAmbientScrobbles = it) }
-                    )
-                }
-            }
-
-            filteredItem(MainPrefs::proxy.name, Res.string.proxy) { title ->
-                val proxyText = proxy.host + ":" + proxy.port
+            filteredItem("copy_sk", Res.string.copy_sk) { title ->
+                val scope = rememberCoroutineScope()
 
                 TextPref(
                     text = title,
-                    summary = when (proxy.type) {
-                        MainPrefs.ProxySettings.Type.HTTP -> "http://$proxyText"
-                        MainPrefs.ProxySettings.Type.SOCKS5 -> "socks5://$proxyText"
-                        MainPrefs.ProxySettings.Type.SYSTEM -> stringResource(Res.string.system)
-                    },
                     onClick = {
-                        onNavigate(PanoRoute.Modal.ProxyPref)
-                    }
-                )
-            }
-
-            PlatformSpecificPrefs.updateCheck(::filteredItem, checkForUpdates, updateProgress)
-
-            if (!PlatformStuff.isTv) {
-                filteredItem("automation", Res.string.automation) { title ->
-                    TextPref(
-                        text = title,
-                        onClick = {
-                            onNavigate(PanoRoute.AutomationInfo)
-                        },
-                        locked = !isLicenseValid,
-                    )
-                }
-            }
-
-            if (CrashReporterConfig.isAvailable) {
-                filteredItem(
-                    "crash_reporter",
-                    Res.string.pref_crashlytics_enabled
-                ) { title ->
-                    SwitchPref(
-                        text = title,
-                        value = crashReporterEnabled,
-                        copyToSave = {
-                            crashReporterEnabled = it
-                            CrashReporterConfig.isEnabled = it
-                            this
-                        }
-                    )
-                }
-            }
-
-            filteredHeader("about", Res.string.pref_about, Icons.Info)
-
-            filteredItem(key = "oss_credits", Res.string.pref_oss_credits) { title ->
-                TextPref(
-                    text = title,
-                    onClick = {
-                        onNavigate(PanoRoute.OssCredits)
-                    }
-                )
-            }
-
-            filteredItem(key = "privacy_policy", Res.string.pref_privacy_policy) { title ->
-                TextPref(
-                    text = title,
-                    onClick = {
-                        onNavigate(PanoRoute.PrivacyPolicy)
-                    }
-                )
-            }
-
-            filteredItem(
-                key = "github_link",
-                Res.string.also_available_on,
-                if (PlatformStuff.isDesktop)
-                    Res.string.android
-                else
-                    Res.string.desktop
-            ) { title ->
-                TextPref(
-                    text = title,
-                    summary = Stuff.HOMEPAGE_URL + "\n" +
-                            ("v" + BuildKonfig.VER_NAME + if (BuildKonfig.DEBUG) " (Debug)" else ""),
-                    onClick = {
-                        onNavigate(PanoRoute.Modal.ShowLink(Stuff.HOMEPAGE_URL))
-                    }
-                )
-            }
-
-            if (BuildKonfig.DEBUG) {
-                filteredHeader("debug", Res.string.debug_menu, Icons.BugReport)
-
-                filteredItem(MainPrefs::demoModeP.name, Res.string.demo_mode) { title ->
-                    SwitchPref(
-                        text = title,
-                        value = demoMode,
-                        copyToSave = { copy(demoMode = it) }
-                    )
-                }
-
-                filteredItem("copy_sk", Res.string.copy_sk) { title ->
-                    val scope = rememberCoroutineScope()
-
-                    TextPref(
-                        text = title,
-                        onClick = {
-                            scope.launch {
-                                PlatformStuff.mainPrefs.data
-                                    .map { p ->
-                                        p.scrobbleAccounts.firstOrNull {
-                                            it.type == AccountType.LASTFM
-                                        }?.authKey
-                                    }.first()
-                                    ?.let {
-                                        PlatformStuff.copyToClipboard(it)
-                                    }
-                            }
-                        }
-                    )
-                }
-
-                filteredItem("delete_receipt", Res.string.delete_receipt) { title ->
-                    val scope = rememberCoroutineScope()
-
-                    TextPref(
-                        text = title,
-                        onClick = {
-                            scope.launch {
-                                mainPrefs.updateData {
-                                    it.copy(receipt = null, receiptSignature = null)
+                        scope.launch {
+                            PlatformStuff.mainPrefs.data
+                                .map { p ->
+                                    p.scrobbleAccounts.firstOrNull {
+                                        it.type == AccountType.LASTFM
+                                    }?.authKey
+                                }.first()
+                                ?.let {
+                                    PlatformStuff.copyToClipboard(it)
                                 }
+                        }
+                    }
+                )
+            }
+
+            filteredItem("delete_receipt", Res.string.delete_receipt) { title ->
+                val scope = rememberCoroutineScope()
+
+                TextPref(
+                    text = title,
+                    onClick = {
+                        scope.launch {
+                            mainPrefs.updateData {
+                                it.copy(receipt = null, receiptSignature = null)
                             }
                         }
-                    )
-                }
+                    }
+                )
             }
         }
     }

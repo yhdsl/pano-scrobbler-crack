@@ -1,6 +1,5 @@
 package com.arn.scrobble.onboarding
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,13 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalToggleButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedToggleButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,13 +30,13 @@ import com.arn.scrobble.api.AccountType
 import com.arn.scrobble.icons.ArrowDropDown
 import com.arn.scrobble.icons.CheckCircle
 import com.arn.scrobble.icons.Circle
+import com.arn.scrobble.icons.FiberManualRecord
 import com.arn.scrobble.icons.Icons
 import com.arn.scrobble.main.MainViewModel
 import com.arn.scrobble.navigation.PanoRoute
-import com.arn.scrobble.panoicons.Nothing
-import com.arn.scrobble.panoicons.PanoIcons
+import com.arn.scrobble.ui.PanoDropdownMenu
 import com.arn.scrobble.ui.accountTypeLabel
-import com.arn.scrobble.ui.horizontalOverscanPadding
+import com.arn.scrobble.ui.myTransparentCheckableItemColors
 import com.arn.scrobble.ui.testTagsAsResId
 import com.arn.scrobble.utils.PlatformStuff
 import org.jetbrains.compose.resources.StringResource
@@ -74,11 +72,15 @@ fun ButtonsStepper(
         horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.End)
     ) {
         if (onSkipClick != null) {
-            TextButton(onClick = onSkipClick) {
+            TextButton(
+                shapes = ButtonDefaults.shapes(),
+                onClick = onSkipClick
+            ) {
                 Text(text = stringResource(Res.string.skip))
             }
         }
         OutlinedButton(
+            shapes = ButtonDefaults.shapes(),
             onClick = onOpenClick,
             modifier = Modifier
                 .testTag("button_stepper_open")
@@ -104,13 +106,13 @@ fun ButtonStepperForLogin(
 
     var dropDownShown by remember { mutableStateOf(false) }
 
-    OutlinedToggleButton(
+    FilledTonalToggleButton(
         checked = dropDownShown,
         onCheckedChange = {
             dropDownShown = it
         },
         modifier = modifier
-            .padding(start = IconButtonDefaults.mediumIconSize + 16.dp)
+            .padding(top = 4.dp)
             .testTag("login_type_dropdown")
     ) {
         Text(
@@ -119,22 +121,24 @@ fun ButtonStepperForLogin(
         Spacer(Modifier.size(ButtonDefaults.IconSpacing))
         Icon(Icons.ArrowDropDown, contentDescription = null)
 
-        DropdownMenu(
+        PanoDropdownMenu(
             expanded = dropDownShown,
             onDismissRequest = { dropDownShown = false }
         ) {
             accountTypesToStrings.forEach { (accType, string) ->
-                DropdownMenuItem(
+                item(
                     onClick = {
                         navigate(LoginDestinations.route(accType))
                         dropDownShown = false
                     },
                     text = {
-                        Text(string)
+                        Text(
+                            string,
+                            modifier = Modifier
+                                .testTag("login_type_" + accType.name)
+                                .testTagsAsResId()
+                        )
                     },
-                    modifier = Modifier
-                        .testTag("login_type_" + accType.name)
-                        .testTagsAsResId()
                 )
             }
         }
@@ -165,15 +169,39 @@ fun VerticalStepperItem(
     val icon = if (isDone)
         Icons.CheckCircle
     else if (isExpanded)
-        PanoIcons.Nothing
+        Icons.FiberManualRecord
     else
         Icons.Circle
 
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ListItem(
+        supportingContent = if (isExpanded) {
+            {
+                Column {
+                    if (description != null) {
+                        Text(
+                            text = description,
+                        )
+                    }
+
+                    if (additionalContent != null) {
+                        additionalContent()
+                    }
+
+                    buttonsContent()
+                }
+            }
+        } else null,
+        leadingContent = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+            )
+        },
+        verticalAlignment = Alignment.Top,
+        colors = ListItemDefaults.myTransparentCheckableItemColors(),
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp, horizontal = horizontalOverscanPadding())
+            .padding(vertical = 8.dp)
             .then(
                 if (isExpanded)
                     Modifier.alpha(1f)
@@ -181,46 +209,11 @@ fun VerticalStepperItem(
                     Modifier.alpha(0.5f)
             ),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-            )
-
-            Text(
-                text = stringResource(titleRes),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        AnimatedVisibility(isExpanded) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                if (description != null) {
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = modifier
-                            .padding(start = IconButtonDefaults.mediumIconSize + 16.dp)
-                            .fillMaxWidth()
-                    )
-                }
-                if (additionalContent != null) {
-                    additionalContent()
-                }
-
-                buttonsContent()
-            }
-        }
+        Text(
+            text = stringResource(titleRes),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
     }
 }
 
@@ -237,6 +230,7 @@ fun OnboardingTopRow(
     ) {
         if (showProxySettings) {
             TextButton(
+                shapes = ButtonDefaults.shapes(),
                 onClick = {
                     onNavigate(PanoRoute.Modal.ProxyPref)
                 },
@@ -246,6 +240,7 @@ fun OnboardingTopRow(
         }
 
         TextButton(
+            shapes = ButtonDefaults.shapes(),
             onClick = {
                 onNavigate(PanoRoute.PrivacyPolicy)
             },

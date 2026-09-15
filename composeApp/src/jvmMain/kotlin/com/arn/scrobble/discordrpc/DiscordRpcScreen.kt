@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,7 +26,6 @@ import com.arn.scrobble.pref.SliderPref
 import com.arn.scrobble.pref.SwitchPref
 import com.arn.scrobble.ui.HighlighterVisualTransformation
 import com.arn.scrobble.ui.PanoOutlinedTextField
-import com.arn.scrobble.ui.horizontalOverscanPadding
 import com.arn.scrobble.utils.PlatformStuff
 import com.arn.scrobble.utils.Stuff
 import com.arn.scrobble.utils.Stuff.collectAsStateWithInitialValue
@@ -58,23 +58,23 @@ fun DiscordRpcScreen(
     modifier: Modifier = Modifier,
 ) {
     val settings by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.discordRpc }
-    val defaultSettings = remember { MainPrefs.DiscordRpcSettings() }
+    val defaultSettings = remember { MainPrefs.DiscordRpcPrefs() }
     var line1Format by remember(settings.line1Format) { mutableStateOf(settings.line1Format) }
     var line2Format by remember(settings.line2Format) { mutableStateOf(settings.line2Format) }
     var line3Format by remember(settings.line3Format) { mutableStateOf(settings.line3Format) }
     var nameFormat by remember(settings.nameFormat) { mutableStateOf(settings.nameFormat) }
     val buttonType by remember(settings.buttonType) {
         mutableStateOf(
-            MainPrefs.DiscordRpcSettings.ButtonType.entries.find { it.name == settings.buttonType }
-                ?: MainPrefs.DiscordRpcSettings.ButtonType.PANO_SCROBBLER
+            MainPrefs.DiscordRpcPrefs.ButtonType.entries.find { it.name == settings.buttonType }
+                ?: MainPrefs.DiscordRpcPrefs.ButtonType.PANO_SCROBBLER
         )
     }
     val line by remember(settings.statusLine) {
         mutableStateOf(
             when (settings.statusLine) {
-                1 -> MainPrefs.DiscordRpcSettings.Line.Line1
-                2 -> MainPrefs.DiscordRpcSettings.Line.Line2
-                else -> MainPrefs.DiscordRpcSettings.Line.None
+                1 -> MainPrefs.DiscordRpcPrefs.Line.Line1
+                2 -> MainPrefs.DiscordRpcPrefs.Line.Line2
+                else -> MainPrefs.DiscordRpcPrefs.Line.None
             }
         )
     }
@@ -166,14 +166,14 @@ fun DiscordRpcScreen(
         )
 
         Text(
-            stringResource(
-                Res.string.available_placeholders,
-                DiscordRpcPlaceholder.entries.joinToString { "\$" + it.name }
-            ),
-            color = tertiaryColor,
+            visualTransformation.highlight(
+                stringResource(
+                    Res.string.available_placeholders,
+                    DiscordRpcPlaceholder.entries.joinToString { "\$" + it.name }
+                )),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = horizontalOverscanPadding())
+                .padding(horizontal = 16.dp)
         )
 
         PanoOutlinedTextField(
@@ -186,6 +186,7 @@ fun DiscordRpcScreen(
             isError = line1Format.trim().isEmpty(),
             trailingIcon = {
                 IconButton(
+                    shapes = IconButtonDefaults.shapes(),
                     enabled = line1Format != defaultSettings.line1Format,
                     onClick = {
                         line1Format = defaultSettings.line1Format
@@ -200,7 +201,7 @@ fun DiscordRpcScreen(
             enabled = settings.enabled,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = horizontalOverscanPadding())
+                .padding(horizontal = 16.dp)
         )
 
         PanoOutlinedTextField(
@@ -213,6 +214,7 @@ fun DiscordRpcScreen(
             isError = line2Format.trim().isEmpty(),
             trailingIcon = {
                 IconButton(
+                    shapes = IconButtonDefaults.shapes(),
                     enabled = line2Format != defaultSettings.line2Format,
                     onClick = {
                         line2Format = defaultSettings.line2Format
@@ -227,7 +229,7 @@ fun DiscordRpcScreen(
             enabled = settings.enabled,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = horizontalOverscanPadding())
+                .padding(horizontal = 16.dp)
         )
 
         PanoOutlinedTextField(
@@ -239,6 +241,7 @@ fun DiscordRpcScreen(
             visualTransformation = visualTransformation,
             trailingIcon = {
                 IconButton(
+                    shapes = IconButtonDefaults.shapes(),
                     enabled = line3Format != defaultSettings.line3Format,
                     onClick = {
                         line3Format = defaultSettings.line3Format
@@ -253,7 +256,7 @@ fun DiscordRpcScreen(
             enabled = settings.enabled,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = horizontalOverscanPadding())
+                .padding(horizontal = 16.dp)
         )
 
         PanoOutlinedTextField(
@@ -265,6 +268,7 @@ fun DiscordRpcScreen(
             visualTransformation = visualTransformation,
             trailingIcon = {
                 IconButton(
+                    shapes = IconButtonDefaults.shapes(),
                     enabled = nameFormat != defaultSettings.nameFormat,
                     onClick = {
                         nameFormat = defaultSettings.nameFormat
@@ -279,18 +283,18 @@ fun DiscordRpcScreen(
             enabled = settings.enabled,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = horizontalOverscanPadding())
+                .padding(horizontal = 16.dp)
         )
 
         DropdownPref(
             text = stringResource(Res.string.discord_compact_view_line),
             selectedValue = line,
-            values = MainPrefs.DiscordRpcSettings.Line.entries,
+            values = MainPrefs.DiscordRpcPrefs.Line.entries,
             toLabel = {
                 when (it) {
-                    MainPrefs.DiscordRpcSettings.Line.Line1 -> stringResource(Res.string.line_n, 1)
-                    MainPrefs.DiscordRpcSettings.Line.Line2 -> stringResource(Res.string.line_n, 2)
-                    MainPrefs.DiscordRpcSettings.Line.None -> stringResource(Res.string.discord_app_name)
+                    MainPrefs.DiscordRpcPrefs.Line.Line1 -> stringResource(Res.string.line_n, 1)
+                    MainPrefs.DiscordRpcPrefs.Line.Line2 -> stringResource(Res.string.line_n, 2)
+                    MainPrefs.DiscordRpcPrefs.Line.None -> stringResource(Res.string.discord_app_name)
                 }
             },
             copyToSave = {
@@ -306,20 +310,20 @@ fun DiscordRpcScreen(
         DropdownPref(
             text = stringResource(Res.string.button_url),
             selectedValue = buttonType,
-            values = MainPrefs.DiscordRpcSettings.ButtonType.entries,
+            values = MainPrefs.DiscordRpcPrefs.ButtonType.entries,
             toLabel = {
                 when (it) {
-                    MainPrefs.DiscordRpcSettings.ButtonType.PANO_SCROBBLER -> BuildKonfig.APP_NAME
-                    MainPrefs.DiscordRpcSettings.ButtonType.LASTFM_PROFILE ->
+                    MainPrefs.DiscordRpcPrefs.ButtonType.PANO_SCROBBLER -> BuildKonfig.APP_NAME
+                    MainPrefs.DiscordRpcPrefs.ButtonType.LASTFM_PROFILE ->
                         stringResource(Res.string.lastfm) + " " + stringResource(Res.string.profile)
 
-                    MainPrefs.DiscordRpcSettings.ButtonType.LISTENBRAINZ_PROFILE ->
+                    MainPrefs.DiscordRpcPrefs.ButtonType.LISTENBRAINZ_PROFILE ->
                         stringResource(Res.string.listenbrainz) + " " + stringResource(Res.string.profile)
 
-                    MainPrefs.DiscordRpcSettings.ButtonType.LIBREFM_PROFILE ->
+                    MainPrefs.DiscordRpcPrefs.ButtonType.LIBREFM_PROFILE ->
                         stringResource(Res.string.librefm) + " " + stringResource(Res.string.profile)
 
-                    MainPrefs.DiscordRpcSettings.ButtonType.NONE ->
+                    MainPrefs.DiscordRpcPrefs.ButtonType.NONE ->
                         stringResource(Res.string.hide)
                 }
             },

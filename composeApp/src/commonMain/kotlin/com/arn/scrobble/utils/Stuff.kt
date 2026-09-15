@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -84,6 +85,8 @@ object Stuff {
     const val MAX_HISTORY_ITEMS = 20
     const val DEFAULT_PAGE_SIZE = 100
     const val SCROBBLE_SOURCE_THRESHOLD = 1000L
+    const val BLUR_BACKDROP_RADIUS_DP = 12
+    const val BLUR_FROSTED_RADIUS_DP = 36
 
     const val LASTFM_API_ROOT = "https://ws.audioscrobbler.com/2.0/"
     const val LIBREFM_API_ROOT = "https://libre.fm/2.0/"
@@ -245,6 +248,10 @@ object Stuff {
         "https://libre.fm/reset.php",
     )
 
+    private val lastfmSupportedLanguageOverrides = setOf(
+        "de", "es", "fr", "it", "ja", "pl", "pt", "ru", "sv", "tr", "zh"
+    )
+
     var isRunningInTest = false
 
     val isInDemoMode get() = mainPrefsCachedValue.demoModeP
@@ -292,7 +299,9 @@ object Stuff {
 
     fun Number.format() = numberFormat.format(this)!!
 
-    val receiptFlow get() = PlatformStuff.mainPrefs.data.map { it.receipt to it.receiptSignature }
+    val receiptFlow
+        get() = PlatformStuff.mainPrefs.data.map { it.receipt to it.receiptSignature }
+            .distinctUntilChanged()
 
     suspend fun setReceipt(r: String?, s: String?) {
         PlatformStuff.mainPrefs.updateData { it.copy(receipt = r, receiptSignature = s) }
@@ -394,8 +403,6 @@ object Stuff {
         return flagEmoji.toString()
     }
 
-    fun <T : Any> List<T>.toInverseMap() = mapIndexed { i, it -> it to i }.toMap()
-
     fun Calendar.setMidnight() {
         this[Calendar.HOUR_OF_DAY] = 0
         this[Calendar.MINUTE] = 0
@@ -410,6 +417,19 @@ object Stuff {
         } catch (e: URLParserException) {
             false
         }
+    }
+
+    fun localizeLastfmUrl(url: String): String {
+        if (url.startsWith("https://www.last.fm/") || url.startsWith("https://last.fm/")) {
+            val lang = Locale.getDefault().language
+            return if (lang in lastfmSupportedLanguageOverrides) {
+                url.replace("last.fm/", "last.fm/$lang/")
+            } else {
+                url
+            }
+        }
+
+        return url
     }
 
     fun HttpRequestBuilder.cacheStrategy(cacheStrategy: CacheStrategy) {

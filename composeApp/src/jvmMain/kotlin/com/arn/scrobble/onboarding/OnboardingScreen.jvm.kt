@@ -1,6 +1,5 @@
 package com.arn.scrobble.onboarding
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -29,6 +28,7 @@ import pano_scrobbler.composeapp.generated.resources.Res
 import pano_scrobbler.composeapp.generated.resources.add_to_app_launcher
 import pano_scrobbler.composeapp.generated.resources.discord_rich_presence
 import pano_scrobbler.composeapp.generated.resources.enable
+import pano_scrobbler.composeapp.generated.resources.linux_install_icons
 import pano_scrobbler.composeapp.generated.resources.pref_login
 import pano_scrobbler.composeapp.generated.resources.run_on_start
 import pano_scrobbler.composeapp.generated.resources.yes
@@ -47,10 +47,10 @@ actual fun OnboardingScreen(
         listOfNotNull(
             OnboardingStepType.LOGIN,
             OnboardingStepType.DISCORD_RICH_PRESENCE,
-            if (DesktopStuff.os == DesktopStuff.Os.Linux)
+            if (DesktopStuff.IS_LINUX)
                 OnboardingStepType.AUTOSTART
             else null,
-            if (DesktopStuff.os == DesktopStuff.Os.Linux && System.getenv("APPIMAGE") != null)
+            if (DesktopStuff.IS_LINUX && System.getenv("APPIMAGE") != null)
                 OnboardingStepType.APP_LAUNCHER
             else null,
         )
@@ -90,7 +90,6 @@ actual fun OnboardingScreen(
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 
         OnboardingTopRow(
@@ -160,7 +159,7 @@ actual fun OnboardingScreen(
                 OnboardingStepType.APP_LAUNCHER -> {
                     VerticalStepperItem(
                         titleRes = Res.string.add_to_app_launcher,
-                        description = null,
+                        description = stringResource(Res.string.linux_install_icons),
                         openButtonText = stringResource(Res.string.yes),
                         openAction = {
                             DesktopStuff.addAppImageToAppLauncher()

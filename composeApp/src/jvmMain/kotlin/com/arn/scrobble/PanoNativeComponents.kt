@@ -24,8 +24,7 @@ object PanoNativeComponents {
     private var desktopMediaListener: DesktopMediaListener? = null
     val onFilePickedFlow = MutableSharedFlow<Pair<Int, String>>(extraBufferCapacity = 1)
     val onDarkModeChangeFlow = MutableStateFlow<Boolean?>(null)
-    var isMediaListenerRunning = false
-        private set
+    private var isEventLoopRunning = false
 
     @Suppress("UnsafeDynamicallyLoadedCode")
     fun load() {
@@ -39,7 +38,7 @@ object PanoNativeComponents {
             scrobbleQueue
         )
 
-        startListeningMediaInThread()
+        startEventLoopInThread()
         desktopMediaListener!!.start()
 
         Stuff.appScope.launch {
@@ -47,14 +46,13 @@ object PanoNativeComponents {
         }
     }
 
-    fun startListeningMediaInThread() {
+    fun startEventLoopInThread() {
         Thread {
-            isMediaListenerRunning = true
-            startListeningMedia()
-            isMediaListenerRunning = false
-            Logger.i("startListeningMediaInThread finished")
+            isEventLoopRunning = true
+            startEventLoop()
+            isEventLoopRunning = false
         }.apply {
-            name = "MediaListenerThread"
+            name = "MainEventLoopThread"
         }
             .start()
     }
@@ -117,14 +115,19 @@ object PanoNativeComponents {
         uniqueAppId: String,
         state: String,
         position: Long,
-        canSkip: Boolean
+        canSkip: Boolean,
+        canChangeChannel: Boolean,
     ) {
         val playbackInfo = PlaybackInfo(
             state = CommonPlaybackState.valueOf(state),
             position = position,
-            canSkip = canSkip
+            canSkip = canSkip,
         )
-        desktopMediaListener?.platformPlaybackStateChanged(uniqueAppId, playbackInfo)
+        desktopMediaListener?.platformPlaybackStateChanged(
+            uniqueAppId,
+            playbackInfo,
+            canChangeChannel
+        )
     }
 
     @JvmStatic
@@ -167,13 +170,13 @@ object PanoNativeComponents {
     external fun setLogFilePath(path: String)
 
     @JvmStatic
-    external fun stopListeningMedia()
+    external fun stopEventLoop()
 
     @JvmStatic
     external fun refreshSessions()
 
     @JvmStatic
-    private external fun startListeningMedia()
+    private external fun startEventLoop()
 
     @JvmStatic
     external fun skip(appId: String)
@@ -188,10 +191,10 @@ object PanoNativeComponents {
     external fun notify(title: String, body: String)
 
     @JvmStatic
-    external fun setTrayLinux(
+    external fun setTray(
+        iconsDir: String,
+        iconName: String,
         tooltip: String,
-        pngBytes: ByteArray,
-        invert: Boolean,
         menuItemIds: Array<String>,
         menuItemTexts: Array<String>
     )
@@ -203,13 +206,16 @@ object PanoNativeComponents {
     external fun setEnvironmentVariable(key: String, value: String)
 
     @JvmStatic
-    external fun setHwndWindows(hwnd: Long)
+    external fun applyWindowEffects(handle: Long, isDark: Boolean, isBlur: Boolean)
 
     @JvmStatic
     external fun sendIpcCommand(command: String, arg: String): Boolean
 
     @JvmStatic
     external fun isFileLockedWindows(path: String): Boolean
+
+    @JvmStatic
+    external fun attachParentConsoleWindows(): Boolean
 
     @JvmStatic
     external fun fileChooser(
@@ -221,7 +227,7 @@ object PanoNativeComponents {
     )
 
     @JvmStatic
-    external fun openUrl(url: String)
+    external fun openUrlLinux(url: String)
 
     @JvmStatic
     external fun autoStartLinux(add: Boolean)

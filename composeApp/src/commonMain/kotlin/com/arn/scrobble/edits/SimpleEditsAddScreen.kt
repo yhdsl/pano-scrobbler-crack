@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconToggleButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PlainTooltip
@@ -24,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -32,18 +35,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.navigation3.runtime.result.ResultEffect
 import com.arn.scrobble.api.lastfm.LastFm
 import com.arn.scrobble.api.lastfm.ScrobbleData
 import com.arn.scrobble.db.SimpleEdit
 import com.arn.scrobble.icons.Check
 import com.arn.scrobble.icons.Delete
 import com.arn.scrobble.icons.Icons
-import com.arn.scrobble.icons.KeyboardArrowDown
 import com.arn.scrobble.icons.KeyboardArrowUp
 import com.arn.scrobble.icons.SwapVert
 import com.arn.scrobble.main.MainViewModel
 import com.arn.scrobble.media.PlayingTrackNotifyEvent
 import com.arn.scrobble.media.notifyPlayingTrackEvent
+import com.arn.scrobble.navigation.FabClickedResult
 import com.arn.scrobble.panoicons.ContentSaveOffOutline
 import com.arn.scrobble.panoicons.PanoIcons
 import com.arn.scrobble.ui.ButtonWithIcon
@@ -60,7 +64,6 @@ import pano_scrobbler.composeapp.generated.resources.album
 import pano_scrobbler.composeapp.generated.resources.album_artist
 import pano_scrobbler.composeapp.generated.resources.any_value
 import pano_scrobbler.composeapp.generated.resources.artist
-import pano_scrobbler.composeapp.generated.resources.collapse
 import pano_scrobbler.composeapp.generated.resources.corrected
 import pano_scrobbler.composeapp.generated.resources.delete
 import pano_scrobbler.composeapp.generated.resources.disable
@@ -69,15 +72,16 @@ import pano_scrobbler.composeapp.generated.resources.edit_continue_simple
 import pano_scrobbler.composeapp.generated.resources.edit_example
 import pano_scrobbler.composeapp.generated.resources.edit_no_save
 import pano_scrobbler.composeapp.generated.resources.existing_value
-import pano_scrobbler.composeapp.generated.resources.expand
 import pano_scrobbler.composeapp.generated.resources.original
 import pano_scrobbler.composeapp.generated.resources.pref_login
 import pano_scrobbler.composeapp.generated.resources.rank_change_no_change
 import pano_scrobbler.composeapp.generated.resources.required_fields_empty
 import pano_scrobbler.composeapp.generated.resources.save
+import pano_scrobbler.composeapp.generated.resources.show_all
 import pano_scrobbler.composeapp.generated.resources.swap
 import pano_scrobbler.composeapp.generated.resources.track
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SimpleEditsAddScreen(
     simpleEdit: SimpleEdit?,
@@ -87,6 +91,8 @@ fun SimpleEditsAddScreen(
     msid: String?,
     hash: Int?,
     key: String?,
+    isExpanded: Boolean,
+    onExpand: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MainViewModel,
 ) {
@@ -112,7 +118,6 @@ fun SimpleEditsAddScreen(
     var reauthenticateButtonShown by remember { mutableStateOf(false) }
     var save by rememberSaveable { mutableStateOf(true) }
     val networkEditMode = simpleEdit != null && origScrobbleData != null
-    var isExpanded by rememberSaveable { mutableStateOf(!networkEditMode) }
 
     var hasOrigAlbumArtist by rememberSaveable {
         mutableStateOf(simpleEdit?.hasOrigAlbumArtist ?: false)
@@ -128,6 +133,7 @@ fun SimpleEditsAddScreen(
     val noChangeText = stringResource(Res.string.rank_change_no_change)
     var errorText by rememberSaveable { mutableStateOf<String?>(null) }
     var verifying by rememberSaveable { mutableStateOf(false) }
+    var forceRecomposed by remember { mutableStateOf(false) }
 
     fun doEdit() {
         if (
@@ -188,6 +194,34 @@ fun SimpleEditsAddScreen(
         }
     }
 
+    @Composable
+    fun TextFieldWrapper(
+        enabled: Boolean,
+        value: String,
+        onValueChange: (String) -> Unit,
+        onCheckedChange: (Boolean) -> Unit,
+        labelStr: String,
+        isLast: Boolean = false,
+    ) {
+        key(forceRecomposed) {
+            PanoOutlinedTextField(
+                enabled = enabled,
+                value = value,
+                onValueChange = onValueChange,
+                leadingIcon = {
+                    InlineCheckButton(
+                        checked = enabled,
+                        onCheckedChange = onCheckedChange
+                    )
+                },
+                label = { Text(labelStr) },
+                enabledOnTv = false,
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = if (isLast) ImeAction.Done else ImeAction.Next),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
     DisposableEffect(Unit) {
         if (hash != null) {
             notifyPlayingTrackEvent(
@@ -244,19 +278,31 @@ fun SimpleEditsAddScreen(
         }
     }
 
+    LaunchedEffect(isExpanded) {
+        if (isExpanded) {
+            // workaround for focus getting stuck https://issuetracker.google.com/issues/290343159
+            // works without needing a delay
+            forceRecomposed = true
+        }
+    }
+
+    ResultEffect<FabClickedResult> {
+        doEdit()
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier,
     ) {
-        if (networkEditMode) {
-            ButtonWithIcon(
-                onClick = { isExpanded = !isExpanded },
-                icon = if (!isExpanded) Icons.KeyboardArrowUp else Icons.KeyboardArrowDown,
-                text = if (!isExpanded) stringResource(Res.string.expand)
-                else stringResource(Res.string.collapse),
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-        }
+//        if (networkEditMode) {
+//            ButtonWithIcon(
+//                onClick = { isExpanded = !isExpanded },
+//                icon = if (!isExpanded) Icons.KeyboardArrowUp else Icons.KeyboardArrowDown,
+//                text = if (!isExpanded) stringResource(Res.string.expand)
+//                else stringResource(Res.string.collapse),
+//                modifier = Modifier.align(Alignment.CenterHorizontally)
+//            )
+//        }
 
         if (isExpanded) {
             Text(
@@ -268,68 +314,36 @@ fun SimpleEditsAddScreen(
                     .padding(top = 8.dp)
             )
 
-            PanoOutlinedTextField(
+            TextFieldWrapper(
                 enabled = hasOrigTrack,
                 value = if (hasOrigTrack) origTrack else anythingText,
                 onValueChange = { origTrack = it },
-                leadingIcon = {
-                    InlineCheckButton(
-                        checked = hasOrigTrack,
-                        onCheckedChange = { hasOrigTrack = it }
-                    )
-                },
-                label = { Text(stringResource(Res.string.track)) },
-                enabledOnTv = false,
-                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next),
-                modifier = Modifier.fillMaxWidth()
+                onCheckedChange = { hasOrigTrack = it },
+                labelStr = stringResource(Res.string.track),
             )
 
-            PanoOutlinedTextField(
+            TextFieldWrapper(
                 enabled = hasOrigArtist,
                 value = if (hasOrigArtist) origArtist else anythingText,
                 onValueChange = { origArtist = it },
-                leadingIcon = {
-                    InlineCheckButton(
-                        checked = hasOrigArtist,
-                        onCheckedChange = { hasOrigArtist = it }
-                    )
-                },
-                label = { Text(stringResource(Res.string.artist)) },
-                enabledOnTv = false,
-                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next),
-                modifier = Modifier.fillMaxWidth()
+                onCheckedChange = { hasOrigArtist = it },
+                labelStr = stringResource(Res.string.artist),
             )
 
-            PanoOutlinedTextField(
+            TextFieldWrapper(
                 enabled = hasOrigAlbum,
                 value = if (hasOrigAlbum) origAlbum else anythingText,
                 onValueChange = { origAlbum = it },
-                leadingIcon = {
-                    InlineCheckButton(
-                        checked = hasOrigAlbum,
-                        onCheckedChange = { hasOrigAlbum = it }
-                    )
-                },
-                label = { Text(stringResource(Res.string.album)) },
-                enabledOnTv = false,
-                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next),
-                modifier = Modifier.fillMaxWidth()
+                onCheckedChange = { hasOrigAlbum = it },
+                labelStr = stringResource(Res.string.album),
             )
 
-            PanoOutlinedTextField(
+            TextFieldWrapper(
                 enabled = hasOrigAlbumArtist,
                 value = if (hasOrigAlbumArtist) origAlbumArtist else anythingText,
                 onValueChange = { origAlbumArtist = it },
-                leadingIcon = {
-                    InlineCheckButton(
-                        checked = hasOrigAlbumArtist,
-                        onCheckedChange = { hasOrigAlbumArtist = it }
-                    )
-                },
-                label = { Text(stringResource(Res.string.album_artist)) },
-                enabledOnTv = false,
-                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next),
-                modifier = Modifier.fillMaxWidth()
+                onCheckedChange = { hasOrigAlbumArtist = it },
+                labelStr = stringResource(Res.string.album_artist),
             )
 
             Text(
@@ -347,82 +361,40 @@ fun SimpleEditsAddScreen(
             )
         }
 
-        PanoOutlinedTextField(
+        TextFieldWrapper(
             enabled = hasTrack,
             value = if (hasTrack) track else existingText,
             onValueChange = { track = it },
-            leadingIcon = if (isExpanded) {
-                {
-                    InlineCheckButton(
-                        checked = hasTrack,
-                        onCheckedChange = { hasTrack = it }
-                    )
-                }
-            } else null,
-            label = { Text(stringResource(Res.string.track)) },
-            enabledOnTv = false,
-            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next),
-            modifier = Modifier.fillMaxWidth()
+            onCheckedChange = { hasTrack = it },
+            labelStr = stringResource(Res.string.track),
         )
 
-        PanoOutlinedTextField(
+        TextFieldWrapper(
             enabled = hasArtist,
             value = if (hasArtist) artist else existingText,
             onValueChange = { artist = it },
-            leadingIcon =
-                if (isExpanded) {
-                    {
-                        InlineCheckButton(
-                            checked = hasArtist,
-                            onCheckedChange = { hasArtist = it }
-                        )
-                    }
-                } else null,
-            label = { Text(stringResource(Res.string.artist)) },
-            enabledOnTv = false,
-            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next),
-            modifier = Modifier.fillMaxWidth()
+            onCheckedChange = { hasArtist = it },
+            labelStr = stringResource(Res.string.artist),
         )
 
-        PanoOutlinedTextField(
+        TextFieldWrapper(
             enabled = hasAlbum,
             value = if (hasAlbum) album else existingText,
             onValueChange = { album = it },
-            leadingIcon =
-                if (isExpanded) {
-                    {
-                        InlineCheckButton(
-                            checked = hasAlbum,
-                            onCheckedChange = { hasAlbum = it }
-                        )
-                    }
-                } else null,
-            label = { Text(stringResource(Res.string.album)) },
-            enabledOnTv = false,
-            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next),
-            modifier = Modifier.fillMaxWidth()
+            onCheckedChange = { hasAlbum = it },
+            labelStr = stringResource(Res.string.album),
+            isLast = (isExpanded || !origScrobbleData?.albumArtist.isNullOrEmpty())
         )
 
+
         if (isExpanded || !origScrobbleData?.albumArtist.isNullOrEmpty()) {
-            PanoOutlinedTextField(
+            TextFieldWrapper(
                 enabled = hasAlbumArtist,
                 value = if (hasAlbumArtist) albumArtist else existingText,
                 onValueChange = { albumArtist = it },
-                leadingIcon = if (isExpanded) {
-                    {
-                        InlineCheckButton(
-                            checked = hasAlbumArtist,
-                            onCheckedChange = { hasAlbumArtist = it }
-                        )
-                    }
-                } else null,
-                label = { Text(stringResource(Res.string.album_artist)) },
-                enabledOnTv = false,
-                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = { doEdit() }
-                ),
-                modifier = Modifier.fillMaxWidth()
+                onCheckedChange = { hasAlbumArtist = it },
+                labelStr = stringResource(Res.string.album_artist),
+                isLast = true
             )
         }
 
@@ -433,35 +405,33 @@ fun SimpleEditsAddScreen(
                 checked = continueMatching,
                 onCheckedChange = { continueMatching = it },
                 text = stringResource(Res.string.edit_continue_simple),
+                textStyle = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.fillMaxWidth()
             )
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Spacer(
-                modifier = Modifier.weight(1f)
+        if (simpleEdit != null && !networkEditMode) {
+            ButtonWithIcon(
+                onClick = {
+                    viewModel.editScrobbleUtils.deleteSimpleEdit(simpleEdit)
+                },
+                icon = Icons.Delete,
+                text = stringResource(Res.string.delete),
+                contentColorOverride = MaterialTheme.colorScheme.error,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             )
+        }
 
-            if (simpleEdit != null && !networkEditMode) {
-                IconButton(
-                    onClick = {
-                        viewModel.editScrobbleUtils.deleteSimpleEdit(simpleEdit)
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Delete,
-                        contentDescription = stringResource(Res.string.delete),
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
-
-            if (networkEditMode) {
+        if (networkEditMode) {
+            Row(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 if (reauthenticateButtonShown) {
                     OutlinedButton(
+                        shapes = ButtonDefaults.shapes(),
                         colors = ButtonDefaults.outlinedButtonColors().copy(
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                             contentColor = MaterialTheme.colorScheme.onErrorContainer
@@ -471,6 +441,19 @@ fun SimpleEditsAddScreen(
                         Text(stringResource(Res.string.pref_login))
                     }
                 } else {
+                    if (!isExpanded) {
+                        ButtonWithIcon(
+                            onClick = onExpand,
+                            icon = Icons.KeyboardArrowUp,
+                            text = stringResource(Res.string.show_all),
+                        )
+
+                        Spacer(
+                            modifier = Modifier
+                                .weight(1f)
+                        )
+                    }
+
                     val noSaveText = stringResource(Res.string.save) + ": " +
                             stringResource(Res.string.disable)
                     TooltipBox(
@@ -482,6 +465,7 @@ fun SimpleEditsAddScreen(
                     ) {
                         FilledIconToggleButton(
                             checked = !save,
+                            shapes = IconButtonDefaults.toggleableShapes(),
                             onCheckedChange = {
                                 save = !it
 
@@ -511,23 +495,29 @@ fun SimpleEditsAddScreen(
                         modifier = Modifier.align(Alignment.CenterVertically),
                     )
                 }
-            }
 
-            ButtonWithIcon(
-                onClick = ::doEdit,
-                icon = Icons.Check,
-                enabled = !verifying,
-                text = stringResource(
-                    if (networkEditMode)
-                        Res.string.edit
-                    else
-                        Res.string.save
-                ),
-                modifier = if (verifying)
-                    Modifier.shimmerWindowBounds()
-                else
-                    Modifier
-            )
+                if (!isExpanded)
+                    FilledTonalButton(
+                        shapes = ButtonDefaults.shapes(),
+                        onClick = ::doEdit,
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                        elevation = ButtonDefaults.elevatedButtonElevation(),
+                        modifier = if (verifying)
+                            Modifier.shimmerWindowBounds()
+                        else
+                            Modifier
+                    ) {
+                        Icon(
+                            imageVector = Icons.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize)
+                        )
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text(
+                            text = stringResource(Res.string.edit),
+                        )
+                    }
+            }
         }
     }
 }

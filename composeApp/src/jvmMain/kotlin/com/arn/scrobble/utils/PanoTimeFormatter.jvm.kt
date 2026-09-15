@@ -83,14 +83,8 @@ actual object PanoTimeFormatter {
             Instant.ofEpochMilli(millis),
             ZoneId.systemDefault()
         )
-        val currentYear = LocalDateTime.now().year
         val dateFormatter = DateTimeFormatterBuilder()
             .append(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
-            .apply {
-                if (dateTime.year != currentYear) {
-                    appendPattern(" yyyy")
-                }
-            }
             .toFormatter(Locale.getDefault())
         return dateTime.format(dateFormatter)
     }
@@ -133,34 +127,53 @@ actual object PanoTimeFormatter {
                 }
             }
         val formatter = formatterBuilder.toFormatter(Locale.getDefault())
-        return Stuff.formatBigHyphen(
-            startDateTime.format(formatter),
-            endDateTime.format(formatter)
-        )
+        return startDateTime.format(formatter) + " - " + endDateTime.format(formatter)
     }
 
     actual fun dateRange(startMillis: Long, endMillis: Long): String {
-        val startDateTime = LocalDateTime.ofInstant(
-            Instant.ofEpochMilli(startMillis),
-            ZoneId.systemDefault()
-        )
-        val endDateTime = LocalDateTime.ofInstant(
-            Instant.ofEpochMilli(endMillis - 1),
-            ZoneId.systemDefault()
-        )
-        val currentYear = LocalDateTime.now().year
-        val formatterBuilder = DateTimeFormatterBuilder()
-            .appendPattern("MMM dd")
-            .apply {
-                if (startDateTime.year != currentYear || endDateTime.year != currentYear) {
-                    appendPattern(" yyyy")
-                }
+        val zone = ZoneId.systemDefault()
+        val start = LocalDateTime.ofInstant(Instant.ofEpochMilli(startMillis), zone)
+        val end = LocalDateTime.ofInstant(Instant.ofEpochMilli(endMillis - 1), zone)
+        val currentYear = LocalDateTime.now(zone).year
+        val locale = Locale.getDefault()
+
+        val showYear = start.year != currentYear || end.year != currentYear
+
+        val dayMonthYearFormatter = DateTimeFormatterBuilder()
+            .appendPattern("dd MMM")
+            .apply { if (showYear) appendPattern(" yyyy") }
+            .toFormatter(locale)
+
+        val dayOnlyFormatter = DateTimeFormatter.ofPattern("dd", locale)
+        val dayMonthFormatter = DateTimeFormatter.ofPattern("dd MMM", locale)
+
+        return when {
+            // Same calendar day -> just one date
+            start.toLocalDate() == end.toLocalDate() -> {
+                start.format(dayMonthYearFormatter)
             }
-        val formatter = formatterBuilder.toFormatter(Locale.getDefault())
-        return Stuff.formatBigHyphen(
-            startDateTime.format(formatter),
-            endDateTime.format(formatter)
-        )
+
+            // Same month and year -> "15-20 Aug[ yyyy]"
+            start.year == end.year && start.month == end.month -> {
+                val startStr = start.format(dayOnlyFormatter)
+                val endStr = end.format(dayMonthYearFormatter)
+                "$startStr - $endStr"
+            }
+
+            // Same year, different month -> "28 Aug - 3 Sep[ yyyy]"
+            start.year == end.year -> {
+                val startStr = start.format(dayMonthFormatter)
+                val endStr = end.format(dayMonthYearFormatter)
+                "$startStr - $endStr"
+            }
+
+            // Different years -> "15 Aug 2025 - 20 Aug 2026"
+            else -> {
+                val startStr = start.format(dayMonthYearFormatter)
+                val endStr = end.format(dayMonthYearFormatter)
+                "$startStr - $endStr"
+            }
+        }
     }
 
     actual fun year(millis: Long): String {

@@ -1,14 +1,14 @@
-- Added an APT repository for Debian and Ubuntu based distros.
-- Can now be installed on non-ASCII paths on Windows.
-- Added a helpful error message for "ListenBrainz-like" and "Lastfm-like" servers when they don't
-  support a particular API endpoint.
-- Can ignore TLS errors for local IPs for ListenBrainz-like servers.
-- Supports up to 3 ListenBrainz-like server accounts
-- The album art in Discord Rich Presence shows up faster if it is already cached.
-- Enforced character limits for Discord Rich Presence.
-- Shows the edited/processed data in the now playing edit dialog.
-- The Android widget has been rewritten to allow more than 3 unique instances of it, show album art
-  and have their own account selector.
-- Blocks Telegram Voice and Video messages from scrobbling.
+- Toggle to not scrobble Spotify playing on other devices, is available on Windows
+- Supports fractional scaling on Linux
+- Uses the native tray menu on Windows. Does not spin up the entire Compose engine GPU rendering
+  just for the tray menu. Also makes the app start significantly faster when minimized.
+- Improved reliability of fetching album art for Discord Rich Presence
+- The Windows installer is now 64-bit
+- Uses an outlined focus indicator for tab navigation or DPAD navigation on TV
+- Pause scrobbling until a specific time
+- The UI wastes less vertical space
+- Very long dialogs can now expand to a non-dialog screen
+- Opens locale-specific links for last.fm
+- Added palette styles and hue slider in themes
 - Bug fixes
 - Translation updates by the translators on Crowdin

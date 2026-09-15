@@ -27,15 +27,11 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import pano_scrobbler.composeapp.generated.resources.Res
-import pano_scrobbler.composeapp.generated.resources.grant_notification_access
-import pano_scrobbler.composeapp.generated.resources.persistent_noti_desc
 import pano_scrobbler.composeapp.generated.resources.persistent_noti_fgs
-import pano_scrobbler.composeapp.generated.resources.persistent_noti_oems
-import pano_scrobbler.composeapp.generated.resources.pref_master
+import pano_scrobbler.composeapp.generated.resources.persistent_noti_hide
 import pano_scrobbler.composeapp.generated.resources.pref_master_qs_add
 import pano_scrobbler.composeapp.generated.resources.pref_master_qs_already_addded
 import pano_scrobbler.composeapp.generated.resources.pref_noti
-import pano_scrobbler.composeapp.generated.resources.pref_offline_info
 import pano_scrobbler.composeapp.generated.resources.pref_widget_charts
 import pano_scrobbler.composeapp.generated.resources.scrobbler_off
 import pano_scrobbler.composeapp.generated.resources.scrobbler_on
@@ -44,7 +40,7 @@ import pano_scrobbler.composeapp.generated.resources.show_persistent_noti
 actual object PlatformSpecificPrefs {
     actual fun prefQuickSettings(filteredItem: FilteredItem, scrobblerEnabled: Boolean) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !PlatformStuff.isTv) {
-            filteredItem("master_qs_add", Res.string.pref_master_qs_add, null) { title ->
+            filteredItem("quick_settings", Res.string.pref_master_qs_add, null) { title ->
                 val scrobblerEnabledText =
                     stringResource(if (scrobblerEnabled) Res.string.scrobbler_on else Res.string.scrobbler_off)
                 val context = LocalContext.current
@@ -137,16 +133,14 @@ actual object PlatformSpecificPrefs {
     actual fun prefPersistentNotification(filteredItem: FilteredItem, notiPersistent: Boolean) {
         if (!PlatformStuff.isTv) {
             filteredItem(
-                MainPrefs::notiPersistent.name,
+                "persistent_notification",
                 Res.string.persistent_noti_fgs,
                 null
             ) { title ->
                 SwitchPref(
                     text = title,
-                    summary = stringResource(
-                        Res.string.persistent_noti_desc,
-                        stringResource(Res.string.persistent_noti_oems)
-                    ) + "\n" + stringResource(Res.string.show_persistent_noti),
+                    summary = stringResource(Res.string.show_persistent_noti) + "\n" +
+                            stringResource(Res.string.persistent_noti_hide),
                     value = notiPersistent,
                     copyToSave = {
                         copy(notiPersistent = it)
@@ -170,39 +164,14 @@ actual object PlatformSpecificPrefs {
     actual fun deezerApi(filteredItem: FilteredItem, enabled: Boolean) {
     }
 
-    actual fun prefScrobbler(
-        filteredItem: FilteredItem,
+    actual fun onPrefScrobblerToggled(
         scrobblerEnabled: Boolean,
-        nlsEnabled: Boolean,
-        onNavigate: (PanoRoute) -> Unit,
     ) {
-        filteredItem(MainPrefs::scrobblerEnabled.name, Res.string.pref_master, null) { title ->
-            val scope = rememberCoroutineScope()
-            val context = LocalContext.current
-
-            SwitchPref(
-                text = title,
-                summary = if (!nlsEnabled)
-                    stringResource(Res.string.grant_notification_access)
-                else
-                    stringResource(Res.string.pref_offline_info),
-                value = scrobblerEnabled && nlsEnabled,
-                copyToSave = {
-                    if (!nlsEnabled) {
-                        onNavigate(PanoRoute.Onboarding)
-                        this
-                    } else {
-                        scope.launch(Dispatchers.IO) {
-                            MasterSwitchQS.requestListeningState(context)
-                            if (it) {
-                                AndroidStuff.requestRebindFromContentProvider(context.contentResolver)
-                            }
-                        }
-
-                        copy(scrobblerEnabled = it)
-                    }
-                }
-            )
+        Stuff.appScope.launch(Dispatchers.IO) {
+            MasterSwitchQS.requestListeningState(AndroidStuff.applicationContext)
+            if (scrobblerEnabled) {
+                AndroidStuff.requestRebindFromContentProvider(AndroidStuff.applicationContext.contentResolver)
+            }
         }
     }
 

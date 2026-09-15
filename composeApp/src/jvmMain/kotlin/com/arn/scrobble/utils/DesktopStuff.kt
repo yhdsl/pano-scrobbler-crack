@@ -9,9 +9,8 @@ import java.net.URISyntaxException
 
 
 object DesktopStuff {
-    enum class Os {
-        Windows, Macos, Linux
-    }
+    const val IS_WINDOWS = BuildKonfig.IS_WINDOWS
+    const val IS_LINUX = BuildKonfig.IS_LINUX
 
     private lateinit var cmdlineArgs: CmdlineArgs
 
@@ -31,14 +30,8 @@ object DesktopStuff {
         File(appDataRoot, "webview").also { it.mkdirs() }
     }
 
-    val os = when (BuildKonfig.OS_ORDINAL) {
-        Os.Windows.ordinal -> Os.Windows
-        Os.Macos.ordinal -> Os.Macos
-        else -> Os.Linux
-    }
-
     val noUpdateCheck: Boolean
-        get() = os == Os.Linux && System.getenv("APPDIR").isNullOrEmpty() ||
+        get() = IS_LINUX && System.getenv("APPDIR").isNullOrEmpty() ||
                 cmdlineArgs.noUpdateCheck
 
     fun parseCmdlineArgs(args: Array<String>): CmdlineArgs {
@@ -102,19 +95,19 @@ object DesktopStuff {
     }
 
     private fun getDataDir(): File {
-        val defaultDir = when (os) {
-            Os.Windows -> {
+        val defaultDir = when {
+            IS_WINDOWS -> {
                 System.getenv("APPDATA")?.ifEmpty { null }
                     ?: System.getProperty("user.home")
             }
 
-            Os.Linux -> {
+            IS_LINUX -> {
                 System.getenv("XDG_DATA_HOME")?.ifEmpty { null }
                     ?: (System.getProperty("user.home") + "/.local/share")
             }
 
-            Os.Macos -> {
-                System.getProperty("user.home") + "/Library/Application Support"
+            else -> {
+                throw IllegalStateException("Unsupported OS")
             }
         }
 
@@ -132,7 +125,7 @@ object DesktopStuff {
         if (System.getProperty(prop) == null) {
             System.setProperty(prop, execDirPath)
 
-            if (os == Os.Windows) {
+            if (IS_WINDOWS) {
                 // cert for graalvm release builds only
                 System.setProperty("javax.net.ssl.trustStore", "NONE")
                 System.setProperty("javax.net.ssl.trustStoreType", "Windows-ROOT")
@@ -172,41 +165,63 @@ object DesktopStuff {
             ?.let { File(it).absolutePath }
             ?: execDirPath
 
-        return when (os) {
-            Os.Windows -> "$libDir\\$name.dll"
-            Os.Linux -> "$libDir/lib$name.so"
-            Os.Macos -> "$libDir/$name.dylib"
+        return when {
+            IS_WINDOWS -> "$libDir\\$name.dll"
+            IS_LINUX -> "$libDir/lib$name.so"
+            else -> throw IllegalStateException("Unsupported OS")
         }
     }
 
     fun addAppImageToAppLauncher() {
         val appImagePath = System.getenv("APPIMAGE")
         val appDir = System.getenv("APPDIR")
-        if (os != Os.Linux || appImagePath.isNullOrEmpty() || appDir.isNullOrEmpty())
+        if (!IS_LINUX || appImagePath.isNullOrEmpty() || appDir.isNullOrEmpty())
             return
 
         val dataHome = System.getenv("XDG_DATA_HOME")?.ifEmpty { null }
             ?: (System.getProperty("user.home") + "/.local/share")
 
         // Icon
-        val iconSrc =
-            File(appDir, "usr/share/icons/hicolor/scalable/apps/$appNameWithoutSpaces.svg")
-        val iconDest = File(dataHome, "icons/hicolor/scalable/apps/$appNameWithoutSpaces.svg")
+        val iconSrc = File(appDir, "usr/share/icons/hicolor/scalable")
+        val iconDest = File(dataHome, "icons/hicolor/scalable")
         iconDest.parentFile.mkdirs()
-        iconSrc.copyTo(iconDest, overwrite = true)
+        iconSrc.copyRecursively(iconDest, overwrite = true)
+
+        val iconSrc2 = File(appDir, "usr/share/icons/hicolor/symbolic")
+        val iconDest2 = File(dataHome, "icons/hicolor/symbolic")
+        iconDest2.parentFile.mkdirs()
+        iconSrc2.copyRecursively(iconDest2, overwrite = true)
+
+        val oldIconDest = File(dataHome, "icons/hicolor/scalable/apps/$appNameWithoutSpaces.svg")
+        if (oldIconDest.exists())
+            oldIconDest.delete()
 
         val desktopSrc = File(appDir, "usr/share/applications/$appNameWithoutSpaces.desktop")
         val desktopDest = File(dataHome, "applications/$appNameWithoutSpaces.desktop")
         desktopDest.parentFile.mkdirs()
         val desktopContent = desktopSrc.readText()
             .replace(Regex("^Exec=.*$", RegexOption.MULTILINE), "Exec=\"$appImagePath\" %U")
-            .replace(Regex("^Icon=.*$", RegexOption.MULTILINE), "Icon=$appNameWithoutSpaces")
         desktopDest.writeText(desktopContent)
+    }
+
+    fun migrateAppImageDesktopFile() {
+        val appImagePath = System.getenv("APPIMAGE") ?: return
+
+        val dataHome = System.getenv("XDG_DATA_HOME")?.ifEmpty { null }
+            ?: (System.getProperty("user.home") + "/.local/share")
+
+        val desktopDest = File(dataHome, "applications/$appNameWithoutSpaces.desktop")
+
+        if (!desktopDest.exists()) return
+
+        val desktopContent = desktopDest.readText()
+        if (appImagePath in desktopContent && "Icon=$appNameWithoutSpaces\n" in desktopContent)
+            addAppImageToAppLauncher()
     }
 
     fun normalizeAppId(appId: String): String {
         return when {
-            os != Os.Linux ->
+            !IS_LINUX ->
                 appId
 
             // KDE Connect

@@ -1,14 +1,16 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     alias(libs.plugins.android.library)
+}
+
+kotlin {
+    jvmToolchain(25)
 }
 
 android {
     namespace = "com.arn.scrobble.extras.play"
     compileSdk {
         version = release(libs.versions.targetSdk.get().toInt()) {
-            minorApiLevel = libs.versions.sdkMinor.get().toInt()
+//            minorApiLevel = libs.versions.sdkMinor.get().toInt()
         }
     }
 
@@ -17,21 +19,14 @@ android {
 
         consumerProguardFiles("consumer-rules.pro")
     }
-
+    lint {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
+        }
+    }
     buildTypes {
         create("releaseGithub") {
             matchingFallbacks += listOf("release")
-        }
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-    }
-
-    kotlin {
-        compilerOptions {
-            jvmTarget = JvmTarget.JVM_21
         }
     }
 }

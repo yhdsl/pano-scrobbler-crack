@@ -3,6 +3,7 @@ package com.arn.scrobble.media
 import com.arn.scrobble.api.lastfm.ScrobbleData
 import com.arn.scrobble.utils.MetadataUtils
 import com.arn.scrobble.utils.PlatformStuff
+import kotlinx.serialization.Serializable
 import java.util.Objects
 import kotlin.math.abs
 
@@ -19,6 +20,21 @@ class PlayingTrackInfo(
         NOW_PLAYING_SUBMITTED,
         SCROBBLE_SUBMITTED,
         CANCELLED,
+    }
+
+    @JvmInline
+    @Serializable
+    value class ArtUrlState(private val _url: String?) {
+        val url: String?
+            get() = _url.takeIf { !canFetch }
+
+        val canFetch: Boolean
+            get() = _url == "can_fetch"
+
+        companion object {
+            val None = ArtUrlState(null)
+            val CanFetch = ArtUrlState("can_fetch")
+        }
     }
 
     var title: String = ""
@@ -45,8 +61,7 @@ class PlayingTrackInfo(
     var trackNumber: Int = 0
         private set
 
-    // null = not fetched, empty = fetched but no art
-    var artUrl: String? = null
+    var artUrlState: ArtUrlState = ArtUrlState.None
         private set
 
     var normalizedUrlHost: String? = null
@@ -63,9 +78,6 @@ class PlayingTrackInfo(
     var isPlaying: Boolean = false
         private set
 
-    var userPlayCount: Int = 0
-        private set
-
     var userLoved: Boolean = false
         private set
 
@@ -73,6 +85,10 @@ class PlayingTrackInfo(
     private var timelineStartTime: Long = cachedTrackInfo?.timelineStartTime ?: 0L
     var playStartTime: Long = cachedTrackInfo?.playStartTime ?: 0L
         private set
+
+    // baseline for timePlayed; unlike playStartTime, advances on every resume,
+    // so pause gaps don't count as played time
+    private var segmentStartTime: Long = cachedTrackInfo?.segmentStartTime ?: 0L
     var scrobbledState: ScrobbledState = cachedTrackInfo?.scrobbledState ?: ScrobbledState.NONE
         private set
     var timePlayed: Long = cachedTrackInfo?.timePlayed ?: 0L
@@ -106,15 +122,16 @@ class PlayingTrackInfo(
         hash = Objects.hash(albumArtist, artist, album, title, appId, notiKey)
         this.normalizedUrlHost = normalizedUrlHost
 
-        this.artUrl = artUrl
+        this.artUrlState = ArtUrlState(artUrl)
 
         scrobbledState = ScrobbledState.NONE
         msid = null
         playStartTime = if (isPlaying) System.currentTimeMillis() else 0L
+        segmentStartTime = playStartTime
     }
 
-    fun setArtUrl(artUrl: String?) {
-        this.artUrl = artUrl
+    fun setArtUrlState(artUrlState: ArtUrlState) {
+        this.artUrlState = artUrlState
     }
 
     // this is only done for desktop
@@ -148,7 +165,6 @@ class PlayingTrackInfo(
             artist = MetadataUtils.sanitizeArtist(origArtist)
             album = MetadataUtils.sanitizeAlbum(origAlbum)
             albumArtist = MetadataUtils.sanitizeAlbumArtist(origAlbumArtist)
-            userPlayCount = 0
             userLoved = false
             scrobbledState = ScrobbledState.PREPARED
         }
@@ -157,23 +173,24 @@ class PlayingTrackInfo(
 
         if (playStartTime <= 0L)
             playStartTime = System.currentTimeMillis()
+        if (segmentStartTime <= 0L)
+            segmentStartTime = System.currentTimeMillis()
     }
 
-    fun updateUserProps(
-        userPlayCount: Int = this.userPlayCount,
-        userLoved: Boolean = this.userLoved,
-    ) {
-        this.userPlayCount = userPlayCount
+    fun updateUserProps(userLoved: Boolean) {
         this.userLoved = userLoved
     }
 
     fun resetTimePlayed() {
         timePlayed = 0L
         playStartTime = System.currentTimeMillis()
+        segmentStartTime = playStartTime
     }
 
     fun addTimePlayed() {
-        timePlayed += System.currentTimeMillis() - playStartTime
+        if (segmentStartTime > 0L)
+            timePlayed += System.currentTimeMillis() - segmentStartTime
+        segmentStartTime = 0L
     }
 
     fun paused() {
@@ -184,6 +201,8 @@ class PlayingTrackInfo(
         isPlaying = true
         if (playStartTime <= 0L)
             playStartTime = System.currentTimeMillis()
+        if (segmentStartTime <= 0L)
+            segmentStartTime = System.currentTimeMillis()
     }
 
     fun toScrobbleData(useOriginals: Boolean) = ScrobbleData(
@@ -204,8 +223,7 @@ class PlayingTrackInfo(
         hash = hash,
         nowPlaying = scrobbledState < ScrobbledState.SCROBBLE_SUBMITTED,
         userLoved = userLoved,
-        userPlayCount = userPlayCount,
-        artUrl = artUrl,
+        artUrlState = artUrlState,
         timelineStartTime = timelineStartTime,
         preprocessed = scrobbledState >= ScrobbledState.PREPROCESSED,
     )
@@ -241,6 +259,6 @@ class PlayingTrackInfo(
     }
 
     override fun toString(): String {
-        return "PlayingTrackInfo(appId='$appId', notiKey='$notiKey', title='$title', origTitle='$origTitle', album='$album', origAlbum='$origAlbum', artist='$artist', origArtist='$origArtist', albumArtist='$albumArtist', origAlbumArtist='$origAlbumArtist', trackNumber=$trackNumber, artUrl=$artUrl, normalizedUrlHost=$normalizedUrlHost, msid=$msid, durationMillis=$durationMillis, hash=${hash.toHexString()}, isPlaying=$isPlaying, userPlayCount=$userPlayCount, userLoved=$userLoved, timelineStartTime=$timelineStartTime, playStartTime=$playStartTime, scrobbledState=$scrobbledState, timePlayed=$timePlayed, lastScrobbleHash=${lastScrobbleHash.toHexString()})"
+        return "PlayingTrackInfo(appId='$appId', notiKey='$notiKey', title='$title', origTitle='$origTitle', album='$album', origAlbum='$origAlbum', artist='$artist', origArtist='$origArtist', albumArtist='$albumArtist', origAlbumArtist='$origAlbumArtist', trackNumber=$trackNumber, artUrl=$artUrlState, normalizedUrlHost=$normalizedUrlHost, msid=$msid, durationMillis=$durationMillis, hash=${hash.toHexString()}, isPlaying=$isPlaying, userLoved=$userLoved, timelineStartTime=$timelineStartTime, playStartTime=$playStartTime, scrobbledState=$scrobbledState, timePlayed=$timePlayed, lastScrobbleHash=${lastScrobbleHash.toHexString()})"
     }
 }
