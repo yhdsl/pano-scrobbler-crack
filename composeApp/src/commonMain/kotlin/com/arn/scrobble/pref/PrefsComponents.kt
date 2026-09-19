@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonLayout
@@ -43,6 +44,7 @@ import com.arn.scrobble.ui.myCheckableItemColors
 import com.arn.scrobble.ui.myTransparentCheckableItemColors
 import com.arn.scrobble.utils.PlatformStuff
 import com.arn.scrobble.utils.Stuff
+import com.arn.scrobble.utils.Stuff.format
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -178,19 +180,108 @@ fun <T> DropdownPref(
                 contentDescription = null,
             )
             Box {
-                PanoDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    values.forEach { value ->
-                        item(
-                            text = { Text(text = toLabel(value)) },
-                            onClick = {
-                                Stuff.appScope.launch { mainPrefs.updateData { it.copyToSave(value) } }
-                                expanded = false
-                            },
-                            enabled = selectedValue != value
-                        )
+                if (expanded) {
+                    PanoDropdownMenu(
+                        expanded = true,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        values.forEach { value ->
+                            item(
+                                text = { Text(text = toLabel(value)) },
+                                onClick = {
+                                    Stuff.appScope.launch {
+                                        mainPrefs.updateData {
+                                            it.copyToSave(
+                                                value
+                                            )
+                                        }
+                                    }
+                                    expanded = false
+                                },
+                                enabled = selectedValue != value
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MultiSelectDropdownPref(
+    text: String,
+    checkedValues: Set<String>,
+    values: Set<String>,
+    toLabel: (String) -> String,
+    copyToSave: MainPrefs.(Set<String>) -> MainPrefs,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var checkedSet by remember { mutableStateOf(checkedValues) }
+    val orderedValues = remember(checkedValues) { checkedSet + (values - checkedSet) }
+
+    ListItem(
+        modifier = modifier,
+        enabled = enabled,
+        checked = expanded,
+        colors = ListItemDefaults.myCheckableItemColors(),
+        verticalAlignment = Alignment.CenterVertically,
+        onCheckedChange = { expanded = it },
+        supportingContent = {
+            Text(
+                text = checkedSet.joinToString(),
+            )
+        },
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text)
+            Icon(
+                imageVector = Icons.ArrowDropDown,
+                contentDescription = null,
+            )
+            Box {
+                if (expanded) {
+                    PanoDropdownMenu(
+                        expanded = true,
+                        onDismissRequest = {
+                            Stuff.appScope.launch { mainPrefs.updateData { it.copyToSave(checkedSet) } }
+                            expanded = false
+                        }
+                    ) {
+                        orderedValues.forEachIndexed { index, value ->
+                            val checked = value in checkedSet
+
+                            checkableItem(
+                                text = { Text(text = toLabel(value)) },
+                                checked = checked,
+                                onCheckedChange = {
+                                    if (it) {
+                                        checkedSet += value
+                                    } else {
+                                        checkedSet -= value
+                                    }
+                                },
+                                trailingContent = if (checked) {
+                                    {
+                                        val pos = remember(checkedSet) {
+                                            (checkedSet.indexOf(value) + 1).format()
+                                        }
+                                        Text(text = pos)
+                                    }
+                                } else null
+                            )
+
+                            if (index < values.size - 1) {
+                                custom {
+                                    Spacer(modifier = Modifier.height(MenuDefaults.GroupSpacing))
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import java.io.File
+import java.util.Locale
 
 
 object LocaleUtils {
@@ -25,8 +26,8 @@ object LocaleUtils {
         "ms" to "Melayu",
         "nl" to "Nederlands",
         "pl" to "polski",
-        "pt" to "português",
         "pt-BR" to "português Brasil",
+        "pt" to "português",
         "ro" to "română",
         "fi" to "suomi",
         "sv" to "svenska",
@@ -47,6 +48,8 @@ object LocaleUtils {
         "ko" to "한국어"
     )
     // localesSet end
+
+    val langCodesMap = localesMap.mapKeys { (k, _) -> k.substringBefore('-') }
 
     private val localeFile = File(PlatformStuff.filesDir, "locale.txt")
     val setLocaleFlow = MutableSharedFlow<String?>(extraBufferCapacity = 2)
@@ -76,4 +79,4 @@ expect fun LocaleUtils.setAppLocale(lang: String?, activityContext: Any?)
 
 expect fun LocaleUtils.getCurrentLocale(): String?
 
-expect fun LocaleUtils.getSystemCountryCode(): String
+expect fun LocaleUtils.getSystemLocale(): Locale
